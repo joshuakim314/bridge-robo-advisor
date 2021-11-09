@@ -133,3 +133,4 @@ dmypy.json
 
 # macOS settings
 .DS_Store
+.DS_Store?
