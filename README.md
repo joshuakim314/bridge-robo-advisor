@@ -32,12 +32,37 @@
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
+<p align="center">
+    <a href="https://www.python.org/">
+        <img src="https://img.shields.io/badge/python-v3-brightgreen.svg?style=flat-square"
+            alt="python"></a> &nbsp;
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor/blob/master/LICENSE">
+        <img src="https://img.shields.io/github/license/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+            alt="MIT license"></a> &nbsp;
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor/stargazers">
+      <img src="https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+            alt="stargazers"></a> &nbsp;
+<!--
+***    <a href="https://github.com/joshuakim314/bridge-robo-advisor/network/members">
+***      <img src="https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+***            alt="forks"></a> &nbsp;
+***    <a href="https://github.com/joshuakim314/bridge-robo-advisor/issues">
+***      <img src="https://img.shields.io/github/issues/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+***            alt=""></a> &nbsp;
+-->
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor/graphs/contributors">
+      <img src="https://img.shields.io/github/contributors/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+            alt="contributors"></a> &nbsp;
+    <a href="https://linkedin.com/in/joshuakim314">
+      <img src="https://img.shields.io/badge/-Joshua%20Kim-lightgrey?style=flat-square&logo=linkedin&colorB=555"
+            alt="linkedin1"></a> &nbsp;
+    <a href="https://linkedin.com/in/aidanjones55">
+      <img src="https://img.shields.io/badge/-Aidan%20Jones-lightgrey?style=flat-square&logo=linkedin&colorB=555"
+            alt="linkedin2"></a> &nbsp;
+    <a href="https://linkedin.com/in/james-gemmell-7162b417a">
+      <img src="https://img.shields.io/badge/-James%20Gemmell-lightgrey?style=flat-square&logo=linkedin&colorB=555"
+            alt="linkedin3"></a> &nbsp;
+</p>
 
 
 <!-- TABLE OF CONTENTS -->
@@ -148,7 +173,6 @@ _For more examples, please refer to the [Documentation](https://example.com)_
 - [ ] Polish README
     - [ ] Images: logo, product name screen shot
     - [ ] Getting Started, Usage, Roadmap, Acknowledgments
-    - [ ] LinkedIn for other project members
 
 See the [open issues](https://github.com/joshuakim314/bridge-robo-advisor/issues) for a full list of proposed features (and known issues).
 
@@ -211,16 +235,4 @@ Project Link: [https://github.com/joshuakim314/bridge-robo-advisor](https://gith
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/joshuakim314/bridge-robo-advisor.svg?style=flat-square
-[contributors-url]: https://github.com/joshuakim314/bridge-robo-advisor/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=flat-square
-[forks-url]: https://github.com/joshuakim314/bridge-robo-advisor/network/members
-[stars-shield]: https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=flat-square
-[stars-url]: https://github.com/joshuakim314/bridge-robo-advisor/stargazers
-[issues-shield]: https://img.shields.io/github/issues/joshuakim314/bridge-robo-advisor.svg?style=flat-square
-[issues-url]: https://github.com/joshuakim314/bridge-robo-advisor/issues
-[license-shield]: https://img.shields.io/github/license/joshuakim314/bridge-robo-advisor.svg?style=flat-square
-[license-url]: https://github.com/joshuakim314/bridge-robo-advisor/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-Joshua%20Kim-lightgrey?style=flat-square&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/joshuakim314
 [product-screenshot]: images/screenshot.png
