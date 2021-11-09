@@ -210,15 +210,15 @@ Project Link: [https://github.com/joshuakim314/bridge-robo-advisor](https://gith
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/github_username/repo_name.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
 [contributors-url]: https://github.com/joshuakim314/bridge-robo-advisor/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/github_username/repo_name.svg?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
 [forks-url]: https://github.com/joshuakim314/bridge-robo-advisor/network/members
-[stars-shield]: https://img.shields.io/github/stars/github_username/repo_name.svg?style=for-the-badge
+[stars-shield]: https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
 [stars-url]: https://github.com/joshuakim314/bridge-robo-advisor/stargazers
-[issues-shield]: https://img.shields.io/github/issues/github_username/repo_name.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
 [issues-url]: https://github.com/joshuakim314/bridge-robo-advisor/issues
-[license-shield]: https://img.shields.io/github/license/github_username/repo_name.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
 [license-url]: https://github.com/joshuakim314/bridge-robo-advisor/blob/master/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-Joshua%20Kim-lightgrey?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/joshuakim314
