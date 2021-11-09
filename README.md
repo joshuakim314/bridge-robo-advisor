@@ -1,5 +1,29 @@
 <div id="top"></div>
 
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/github_username/repo_name">
+    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  </a>
+
+<h3 align="center">Bridge: ETF-Based Portfolio Robo-Advisor</h3>
+
+  <p align="center">
+    The first online investment management service that bridges the gap between Main Street and Bay Street
+    <br />
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor">View Demo</a>
+    ·
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor/issues">Request Feature</a>
+  </p>
+</div>
+
+
 <!-- PROJECT SHIELDS -->
 <!--
 *** I'm using markdown "reference style" links for readability.
@@ -16,33 +40,8 @@
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
 
-
-<!-- PROJECT LOGO -->
-<br />
-<div align="center">
-  <a href="https://github.com/github_username/repo_name">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a>
-
-<h3 align="center">Bridge: ETF-Based Portfolio Robo-Advisor</h3>
-
-  <p align="center">
-    project_description
-    <br />
-    <a href="https://github.com/joshuakim314/bridge-robo-advisor"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/joshuakim314/bridge-robo-advisor">View Demo</a>
-    ·
-    <a href="https://github.com/joshuakim314/bridge-robo-advisor/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/joshuakim314/bridge-robo-advisor/issues">Request Feature</a>
-  </p>
-</div>
-
-
-
 <!-- TABLE OF CONTENTS -->
+## Table of Contents
 <details>
   <summary>Table of Contents</summary>
   <ol>
@@ -144,10 +143,12 @@ _For more examples, please refer to the [Documentation](https://example.com)_
 <!-- ROADMAP -->
 ## Roadmap
 
-- [] Feature 1
-- [] Feature 2
-- [] Feature 3
-    - [] Nested Feature
+- [x] Feature 1
+- [x] Feature 2
+- [ ] Polish README
+    - [ ] Images: logo, product name screen shot
+    - [ ] Getting Started, Usage, Roadmap, Acknowledgments
+    - [ ] LinkedIn for other project members
 
 See the [open issues](https://github.com/joshuakim314/bridge-robo-advisor/issues) for a full list of proposed features (and known issues).
 
@@ -210,16 +211,16 @@ Project Link: [https://github.com/joshuakim314/bridge-robo-advisor](https://gith
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/joshuakim314/bridge-robo-advisor.svg?style=flat-square
 [contributors-url]: https://github.com/joshuakim314/bridge-robo-advisor/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=flat-square
 [forks-url]: https://github.com/joshuakim314/bridge-robo-advisor/network/members
-[stars-shield]: https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
+[stars-shield]: https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=flat-square
 [stars-url]: https://github.com/joshuakim314/bridge-robo-advisor/stargazers
-[issues-shield]: https://img.shields.io/github/issues/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/joshuakim314/bridge-robo-advisor.svg?style=flat-square
 [issues-url]: https://github.com/joshuakim314/bridge-robo-advisor/issues
-[license-shield]: https://img.shields.io/github/license/joshuakim314/bridge-robo-advisor.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/joshuakim314/bridge-robo-advisor.svg?style=flat-square
 [license-url]: https://github.com/joshuakim314/bridge-robo-advisor/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-Joshua%20Kim-lightgrey?style=for-the-badge&logo=linkedin&colorB=555
+[linkedin-shield]: https://img.shields.io/badge/-Joshua%20Kim-lightgrey?style=flat-square&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/joshuakim314
 [product-screenshot]: images/screenshot.png
