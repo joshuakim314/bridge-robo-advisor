@@ -107,14 +107,20 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 
 ### Built With
 
-* [Next.js](https://nextjs.org/)
-* [React.js](https://reactjs.org/)
-* [Vue.js](https://vuejs.org/)
-* [Angular](https://angular.io/)
-* [Svelte](https://svelte.dev/)
-* [Laravel](https://laravel.com)
-* [Bootstrap](https://getbootstrap.com)
-* [JQuery](https://jquery.com)
+[Python](https://www.python.org/) as the main programming language
+
+Front-End:
+* 
+
+Back-End:
+* [yfinance](https://pypi.org/project/yfinance/) for market data API
+* 
+
+Business Logic:
+* [CVXPY](https://www.cvxpy.org/) for modelling and solving optimization problem
+* [NumPy](https://numpy.org/) for numerical computing
+* [pandas](https://pandas.pydata.org/) for data analysis and processing
+* [Matplotlib](https://matplotlib.org/) for data visualization
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
