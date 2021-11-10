@@ -3,7 +3,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/github_username/repo_name">
+  <a href="https://github.com/joshuakim314/bridge-robo-advisor">
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a>
 
@@ -39,13 +39,13 @@
     <a href="https://github.com/joshuakim314/bridge-robo-advisor/blob/master/LICENSE">
         <img src="https://img.shields.io/github/license/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
             alt="MIT license"></a> &nbsp;
-    <a href="https://github.com/joshuakim314/bridge-robo-advisor/stargazers">
-      <img src="https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
-            alt="stargazers"></a> &nbsp;
+    <a href="https://github.com/joshuakim314/bridge-robo-advisor/network/members">
+      <img src="https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+            alt="forks"></a> &nbsp;
 <!--
-***    <a href="https://github.com/joshuakim314/bridge-robo-advisor/network/members">
-***      <img src="https://img.shields.io/github/forks/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
-***            alt="forks"></a> &nbsp;
+***    <a href="https://github.com/joshuakim314/bridge-robo-advisor/stargazers">
+***      <img src="https://img.shields.io/github/stars/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
+***            alt="stargazers"></a> &nbsp;
 ***    <a href="https://github.com/joshuakim314/bridge-robo-advisor/issues">
 ***      <img src="https://img.shields.io/github/issues/joshuakim314/bridge-robo-advisor.svg?style=flat-square"
 ***            alt=""></a> &nbsp;
@@ -148,7 +148,7 @@ This is an example of how to list things you need to use the software and how to
 1. Get a free API Key at [https://example.com](https://example.com)
 2. Clone the repo
    ```sh
-   git clone https://github.com/github_username/repo_name.git
+   git clone https://github.com/joshuakim314/bridge-robo-advisor.git
    ```
 3. Install NPM packages
    ```sh
