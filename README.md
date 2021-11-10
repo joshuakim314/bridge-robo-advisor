@@ -107,14 +107,16 @@ Here's a blank template to get started: To avoid retyping too much info. Do a se
 
 ### Built With
 
-[Python](https://www.python.org/) as the main programming language
+[Python](https://www.python.org/) is the main programming language.
 
 Front-End:
-* 
+* [React](https://reactjs.org/) as the main development framework
+* [Dash](https://plotly.com/dash/) for dashboarding
 
 Back-End:
+* []() as the database system
 * [yfinance](https://pypi.org/project/yfinance/) for market data API
-* 
+* []() for cloud hosting
 
 Business Logic:
 * [CVXPY](https://www.cvxpy.org/) for modelling and solving optimization problem
