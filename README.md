@@ -119,7 +119,8 @@ Back-End:
 * []() for cloud hosting
 
 Business Logic:
-* [CVXPY](https://www.cvxpy.org/) for modelling and solving optimization problems
+* [CVXPY](https://www.cvxpy.org/) for modelling optimization problems
+* [Gurobi](https://www.gurobi.com/) for solving optimization problems
 * [NumPy](https://numpy.org/) for numerical computing
 * [pandas](https://pandas.pydata.org/) for data analysis and processing
 * [Matplotlib](https://matplotlib.org/) for data visualization

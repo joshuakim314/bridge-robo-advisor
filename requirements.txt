@@ -11,6 +11,7 @@ dash-table==5.0.0
 ecos==2.0.7.post1
 Flask==2.0.2
 Flask-Compress==1.10.1
+gurobipy==9.5.0
 idna==3.3
 itsdangerous==2.0.1
 Jinja2==3.0.3
