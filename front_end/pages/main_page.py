@@ -9,12 +9,12 @@ main_dash = html.Div(
     [
         dbc.Row(
             [
+                html.H2(id='test-callback', style={'textAlign':'center'}),
                 dbc.Col(
                     [
                         dbc.Row(
                             html.Div(
                                 [
-                                    html.H2(id='test-callback'),
                                     exgraph1
                                 ],
                                          )),

@@ -95,5 +95,7 @@ extable1 = dash_table.DataTable(
 extable2 = dash_table.DataTable(
     id='table',
     columns=[{"name": i, "id": i} for i in df2.columns],
-    data=df2.to_dict('records')
+    data=df2.to_dict('records'),
+    css=[{'selector': '.row', 'rule': 'margin: 0'}],
+
 )

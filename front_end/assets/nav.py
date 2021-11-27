@@ -7,7 +7,7 @@ buttons = html.Div([
     dbc.NavItem(dbc.NavLink("Portfolio", href='/main')),
     dbc.NavItem(dbc.NavLink("Deposits", href='/nyi')),
     dbc.NavItem(dbc.NavLink("Breakdown", href='/nyi')),
-    dbc.Button("Log Out", outline=False, color="primary", href='/'),
+    dbc.Button("Log Out", outline=False, color="primary", href='/', id='log-out'),
 ],
     className="d-grid gap-2 d-md-flex justify-content-md-end",
 )

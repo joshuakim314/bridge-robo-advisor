@@ -88,4 +88,3 @@ def get_welcome_string(value):
 
 
 
-
