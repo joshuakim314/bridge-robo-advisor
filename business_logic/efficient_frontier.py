@@ -10,10 +10,10 @@ import pandas as pd
 import cvxpy as cp
 
 from . import exceptions
-from . import objective_functions, base_optimizer
+from . import objective_functions, mpo
 
 
-class EfficientFrontier(base_optimizer.BaseConvexOptimizer):
+class EfficientFrontier(mpo.BaseMPO):
 
     """
     An EfficientFrontier object (inheriting from BaseConvexOptimizer) contains multiple
