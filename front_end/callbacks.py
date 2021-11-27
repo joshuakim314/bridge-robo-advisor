@@ -5,6 +5,7 @@ from dash.dependencies import Input, Output
 
 from app import app
 
+
 email_input = html.Div(
     [
         dbc.Input(type="email", id="example-email", placeholder="Enter email"),
@@ -23,11 +24,10 @@ password_input = html.Div(
     className="mb-3",
 )
 
-
 form = html.Div([
     dbc.Fade([
         dbc.Form([email_input, password_input]),
-        dbc.Button("Continue", color="primary", href='/test'),
+        dbc.Button("Continue", color="primary", href='/main'),
         ],
         id="fade-transition",
         is_in=False,
@@ -70,3 +70,22 @@ def toggle_navbar_collapse(n, is_open):
     if n:
         return not is_open
     return is_open
+
+#Test Pass Pages
+@app.callback(
+    Output("memory-output", "data"),
+    Input("first-name", "value"),
+)
+def store_name(value):
+    return str(value)
+
+@app.callback(
+    Output("test-callback", "children"),
+    Input("memory-output", "data"),
+)
+def get_welcome_string(value):
+    return f'Welcome {value}, you currently have $12,345 invested'
+
+
+
+

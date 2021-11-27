@@ -4,12 +4,11 @@ from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, de
 logo = '/assets/BridgeLogo.svg'
 
 buttons = html.Div([
-    dbc.Button("Left", outline=False, color="primary"),
-    dbc.Button("Right", outline=True, color="primary"),
-    dbc.Button("Right", outline=True, color="primary"),
-    dbc.Button("Right", outline=True, color="primary"),
+    dbc.NavItem(dbc.NavLink("Portfolio", href='/main')),
+    dbc.NavItem(dbc.NavLink("Deposits", href='/nyi')),
+    dbc.NavItem(dbc.NavLink("Breakdown", href='/nyi')),
+    dbc.Button("Log Out", outline=False, color="primary", href='/'),
 ],
-
     className="d-grid gap-2 d-md-flex justify-content-md-end",
 )
 
@@ -25,7 +24,7 @@ navbar = dbc.Navbar(
                     align="center",
                     className="g-0",
                 ),
-                href='/test',
+                href='main',
                 style={"textDecoration": "none"},
             ),
             buttons,

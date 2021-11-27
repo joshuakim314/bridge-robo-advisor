@@ -3,6 +3,9 @@ from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, de
 
 from pages.welcome_page import welcome_page
 from pages.sign_up import sign_up
+from pages.main_page import main_page
+from pages.not_yet_implemented import nyi_page
+
 
 from pages.test_page import test_page
 import callbacks
@@ -10,7 +13,8 @@ from app import app
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
-    html.Div(id='page-content')
+    html.Div(id='page-content'),
+    dcc.Store(id='memory-output'),
 ])
 
 #Page Navigation
@@ -19,6 +23,10 @@ app.layout = html.Div([
 def display_page(pathname):
     if pathname == '/sign_up':
         return sign_up
+    if pathname == '/main':
+        return main_page
+    if pathname == '/nyi':
+        return nyi_page
     if pathname == '/test':
         return test_page
     else:

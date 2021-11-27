@@ -1,6 +1,5 @@
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, dependencies
-from assets.nav import navbar
 
 email_input = html.Div(
     [
@@ -44,7 +43,7 @@ inline_name = dbc.Row(
             [
                 dbc.Input(
                     type="name",
-                    id="example-name-grid",
+                    id="first-name",
                     placeholder="First Name",
                 ),
             ],
@@ -67,7 +66,7 @@ inline_name = dbc.Row(
 form = html.Div([
         dbc.Form([inline_name, email_input, confirm_email, password_input, confirm_password]),
         html.Div([
-            dbc.Button("Continue", color="primary", href='/test', className="me-3"),
+            dbc.Button("Continue", color="primary", href='/main', className="me-3"),
             dbc.Button("Back", color="primary", outline=True, href='/', className="me-3"),
         ],
         )
