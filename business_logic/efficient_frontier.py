@@ -77,31 +77,34 @@ class EfficientFrontier(mpo.BaseMPO):
         """
         # Inputs
         self.cov_matrices = [EfficientFrontier._validate_cov_matrix(cov_matrix) for cov_matrix in cov_matrices]
-        self.expected_returns = EfficientFrontier._validate_expected_returns(
-            expected_returns
-        )
+        self.expected_returns = [EfficientFrontier._validate_expected_returns(expected_return)
+                                 for expected_return in expected_returns]
         self._max_return_value = None
         self._market_neutral = None
 
         if self.expected_returns is None:
-            num_assets = len(cov_matrix)
+            num_assets = len(cov_matrices[0])
+            trade_horizon = len(cov_matrices)
         else:
-            num_assets = len(expected_returns)
+            num_assets = len(expected_returns[0])
+            trade_horizon = len(expected_returns)
 
         # Labels
-        if isinstance(expected_returns, pd.Series):
-            tickers = list(expected_returns.index)
-        elif isinstance(cov_matrix, pd.DataFrame):
-            tickers = list(cov_matrix.columns)
+        if isinstance(expected_returns[0], pd.Series):
+            tickers = list(expected_returns[0].index)
+        elif isinstance(cov_matrices[0], pd.DataFrame):
+            tickers = list(cov_matrices[0].columns)
         else:  # use integer labels
             tickers = list(range(num_assets))
 
-        if expected_returns is not None and cov_matrix is not None:
-            if cov_matrix.shape != (num_assets, num_assets):
-                raise ValueError("Covariance matrix does not match expected returns")
+        if expected_returns is not None and cov_matrices is not None:
+            for cov_matrix in cov_matrices:
+                if cov_matrix.shape != (num_assets, num_assets):
+                    raise ValueError("Covariance matrix does not match expected returns")
 
         super().__init__(
             len(tickers),
+            trade_horizon,
             tickers,
             weight_bounds,
             solver=solver,
@@ -149,14 +152,14 @@ class EfficientFrontier(mpo.BaseMPO):
             returns_df = returns_df.dropna(axis=0, how="any")
 
         if self.expected_returns is not None:
-            if returns_df.shape[1] != len(self.expected_returns):
+            if returns_df.shape[1] != len(self.expected_returns[0]):
                 raise ValueError(
                     "returns columns do not match expected_returns. Please check your tickers."
                 )
 
         return returns_df
 
-    def _make_weight_sum_constraint(self, is_market_neutral):
+    def _make_weight_sum_constraint(self, is_market_neutral=False):
         """
         Helper method to make the weight sum constraint. If market neutral,
         validate the weights provided in the constructor.

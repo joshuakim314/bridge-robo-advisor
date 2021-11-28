@@ -276,22 +276,6 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
     '''
 
     def weights_sum_to_one_constraints(self, broadcast=True, var_list=None):
-        """
-            Add a new constraint to the optimization problem. This constraint must satisfy DCP rules,
-            i.e be either a linear equality constraint or convex inequality constraint.
-            Examples::
-                ef.add_constraint(lambda x : x[0] == 0.02)
-                ef.add_constraint(lambda x : x >= 0.01)
-                ef.add_constraint(lambda x: x <= np.array([0.01, 0.08, ..., 0.5]))
-            :param new_constraint: the constraint to be added
-            :type new_constraint: callable (e.g lambda function)
-            :param broadcast: whether the constraint is broadcasted to every variable
-            :type broadcast: bool, optional
-            :param var_list: the list of variable indices to apply the objective
-            :type var_list: list or tuple of variable indices (int)
-            :param pairwise: whether the constraint is broadcasted in a pairwise manner
-            :type pairwise: bool, optional
-            """
         if broadcast:
             if var_list is not None:
                 warnings.warn("var_list is not used if broadcast is true")

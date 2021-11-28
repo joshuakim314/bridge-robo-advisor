@@ -61,7 +61,7 @@ def portfolio_variance(w, cov_matrix):
     :return: value of the objective function OR objective function expression
     :rtype: float OR cp.Expression
     """
-    variance = cp.quad_form(w, cov_matrix)
+    variance = sum([cp.quad_form(_w, cov_matrix) for _w in w])
     return _objective_value(w, variance)
 
 
