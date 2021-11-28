@@ -1,3 +1,4 @@
+import dash.exceptions
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, dependencies
 from dash.exceptions import PreventUpdate
@@ -74,17 +75,32 @@ def toggle_navbar_collapse(n, is_open):
 #Test Pass Pages
 @app.callback(
     Output("memory-output", "data"),
-    Input("first-name", "value"),
+    Input('continue', 'n_clicks'),
+    [State("first-name", "value")]
 )
-def store_name(value):
-    return str(value)
+def store_name(n_clicks, value):
+        return str(value)
+
+@app.callback(
+    Output("memory-output", "data"),
+    [Input("log-out", "n_clicks")],
+    prevent_initial_call=True
+)
+def reset_name(n_clicks):
+    if n_clicks > 0:
+        print('Resetting Name')
+        return None
+    else:
+        raise dash.exceptions.PreventUpdate
+
 
 @app.callback(
     Output("test-callback", "children"),
-    Input("memory-output", "data"),
+    Input("memory-output", "data")
 )
 def get_welcome_string(value):
     return f'Welcome {value}, you currently have $12,345 invested'
+
 
 
 

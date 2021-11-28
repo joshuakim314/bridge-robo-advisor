@@ -1,5 +1,6 @@
 import dash_bootstrap_components as dbc
-from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, dependencies
+from dash import Dash, State, html, dcc, dash_table, callback, dependencies
+from dash_extensions.enrich import Output, DashProxy, Input, MultiplexerTransform
 
 from assets.nav import navbar
 from assets.examples import exgraph1, exgraph2, extable1, extable2

@@ -73,7 +73,7 @@ form = html.Div([
         dbc.Form([inline_name, email_input, confirm_email, password_input, confirm_password]),
         html.Div([
             dbc.Button("Back", color="primary", outline=True, href='/', className="me-3"),
-            dbc.Button("Continue", color="primary", href='/main', className="me-3"),
+            dbc.Button("Continue", id='continue', color="primary", href='/main', className="me-3"),
         ],
         )
 ], style={"width": "4in", "display": "inline-block", 'marginTop': '0.2in'}
