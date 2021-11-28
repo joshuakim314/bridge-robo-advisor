@@ -27,7 +27,7 @@ main_dash = html.Div(
                 dbc.Col(
                     [
                         extable1,
-                        html.Div([dbc.Button("Deposit", color="primary", href='/nyi')], className="d-grid gap-2")
+                        html.Div([dbc.Button("Deposit", color="primary", href='/deposit')], className="d-grid gap-2")
                     ],
                     lg=3,
                     align='end'
