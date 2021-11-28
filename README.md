@@ -4,7 +4,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/joshuakim314/bridge-robo-advisor">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+    <img src="media/BridgeLogo.svg" alt="Logo" width="80" height="80">
   </a>
 
 <h3 align="center">Bridge: ETF-Based Portfolio Robo-Advisor</h3>
