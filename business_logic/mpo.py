@@ -70,6 +70,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         # Override the variable as a list of variables
         if not ((isinstance(trade_horizon, int) and trade_horizon >= 1) or trade_horizon is None):
             raise TypeError("trade_horizon must be None or a positive integer")
+        self.trade_horizon = trade_horizon
         self._w = [cp.Variable(n_assets) for _ in range(trade_horizon)] if not (trade_horizon is None or 1) \
             else cp.Variable(n_assets)
 
@@ -191,7 +192,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
             for i in var_list:
                 self._additional_objectives.append(new_objective(self._w[i], **kwargs))
 
-    def add_constraint(self, new_constraint, broadcast=True, var_list=None, pairwise=False):
+    def add_constraint(self, new_constraint, broadcast=True, var_list=None, pairwise=False, block=False):
         """
         Add a new constraint to the optimization problem. This constraint must satisfy DCP rules,
         i.e be either a linear equality constraint or convex inequality constraint.
@@ -207,6 +208,8 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         :type var_list: list or tuple of variable indices (int)
         :param pairwise: whether the constraint is broadcasted in a pairwise manner
         :type pairwise: bool, optional
+        :param block: whether the constraint uses the entire variable list
+        :type block: bool, optional
         """
         if self.trade_horizon is None or 1:
             return base_optimizer.BaseConvexOptimizer.add_constraint(self, new_constraint)
@@ -230,8 +233,11 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         else:
             if not isinstance(var_list, (list, tuple)):
                 raise TypeError("var_list must be a list or tuple of variable indices")
-            for i in var_list:
-                self._constraints.append(new_constraint(self._w[i]))
+            if block:
+                self._constraints.append(new_constraint(self._w))
+            else:
+                for i in var_list:
+                    self._constraints.append(new_constraint(self._w[i]))
 
     '''
     def add_sector_constraints(self, sector_mapper, sector_lower, sector_upper):

@@ -182,18 +182,24 @@ class EfficientFrontier(mpo.BaseMPO):
             self.add_constraint(lambda w: cp.sum(w) == 1)
         self._market_neutral = is_market_neutral
 
-    def min_volatility(self):
+    def min_volatility(self, target_return=None):
         """
         Minimise volatility.
         :return: asset weights for the volatility-minimising portfolio
         :rtype: OrderedDict
         """
         self._objective = objective_functions.portfolio_variance(
-            self._w, self.cov_matrix
+            self._w, self.cov_matrices
         )
         for obj in self._additional_objectives:
             self._objective += obj
-
+        if target_return is not None:
+            self.add_constraint(
+                lambda w: cp.sum(
+                    [w[i] @ self.expected_returns[i] for i in range(self.trade_horizon)]
+                ) >= self.trade_horizon * target_return,
+                broadcast=False, block=True
+            )
         self.add_constraint(lambda w: cp.sum(w) == 1)
         return self._solve_cvxpy_opt_problem()
 

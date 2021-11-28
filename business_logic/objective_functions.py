@@ -51,17 +51,17 @@ def _objective_value(w, obj):
         return obj
 
 
-def portfolio_variance(w, cov_matrix):
+def portfolio_variance(w, cov_matrices):
     """
     Calculate the total portfolio variance (i.e square volatility).
     :param w: asset weights in the portfolio
     :type w: np.ndarray OR cp.Variable
-    :param cov_matrix: covariance matrix
-    :type cov_matrix: np.ndarray
+    :param cov_matrices: list of covariance matrices
+    :type cov_matrices: list of np.ndarray
     :return: value of the objective function OR objective function expression
     :rtype: float OR cp.Expression
     """
-    variance = sum([cp.quad_form(_w, cov_matrix) for _w in w])
+    variance = sum([cp.quad_form(_w, cov_matrices[i]) for i, _w in enumerate(w)])
     return _objective_value(w, variance)
 
 
