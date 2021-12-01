@@ -13,9 +13,9 @@ import pandas as pd
 import cvxpy as cp
 import scipy.optimize as sco
 
-from . import objective_functions
-from . import exceptions
-from . import base_optimizer
+import objective_functions
+import exceptions
+import base_optimizer
 
 # TODO: modify non_convex_objective name and code in base_optimizer.py
 # TODO: allow _map_bounds_to_constraints and add_sector_constraints to have different bounds at different time steps
@@ -67,15 +67,16 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         :param solver_options: parameters for the given solver
         :type solver_options: dict, optional
         """
+        super().__init__(n_assets, tickers, weight_bounds, solver, verbose, solver_options)
+
         # Override the variable as a list of variables
         if not ((isinstance(trade_horizon, int) and trade_horizon >= 1) or trade_horizon is None):
             raise TypeError("trade_horizon must be None or a positive integer")
-        self._w = [cp.Variable(n_assets) for _ in range(trade_horizon)] if not (trade_horizon is None or 1) \
+        self.trade_horizon = trade_horizon
+        self._w = [cp.Variable(n_assets) for _ in range(trade_horizon)] if not (trade_horizon is (None or 1)) \
             else cp.Variable(n_assets)
+        self._map_bounds_to_constraints(weight_bounds)
 
-        super().__init__(n_assets, tickers, weight_bounds, solver, verbose, solver_options)
-
-    '''
     def _map_bounds_to_constraints(self, test_bounds):
         """
         Convert input bounds into a form acceptable by cvxpy and add to the constraints list.
@@ -86,7 +87,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         :return: bounds suitable for cvxpy
         :rtype: tuple pair or list of tuple pairs of np.ndarray
         """
-        if self.trade_horizon is None or 1:
+        if self.trade_horizon is (None or 1):
             return base_optimizer.BaseConvexOptimizer._map_bounds_to_constraints(self, test_bounds)
         # If it is a collection with the right length, assume they are all bounds.
         if len(test_bounds) == self.n_assets and not isinstance(
@@ -116,7 +117,6 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
 
         self.add_constraint(lambda w: w >= self._lower_bounds, broadcast=True)
         self.add_constraint(lambda w: w <= self._upper_bounds, broadcast=True)
-    '''
 
     def _solve_cvxpy_opt_problem(self):
         """
@@ -124,7 +124,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         once objectives and constraints have been defined
         :raises exceptions.OptimizationError: if problem is not solvable by cvxpy
         """
-        if self.trade_horizon is None or 1:
+        if self.trade_horizon is (None or 1):
             return base_optimizer.BaseConvexOptimizer._solve_cvxpy_opt_problem(self)
         try:
             if self._opt is None:
@@ -173,7 +173,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         :param var_list: the list of variable indices to apply the objective
         :type var_list: list or tuple of variable indices (int)
         """
-        if self.trade_horizon is None or 1:
+        if self.trade_horizon is (None or 1):
             return base_optimizer.BaseConvexOptimizer.add_objective(self, new_objective, **kwargs)
         if self._opt is not None:
             raise exceptions.InstantiationError(
@@ -191,7 +191,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
             for i in var_list:
                 self._additional_objectives.append(new_objective(self._w[i], **kwargs))
 
-    def add_constraint(self, new_constraint, broadcast=True, var_list=None, pairwise=False):
+    def add_constraint(self, new_constraint, broadcast=True, var_list=None, pairwise=False, block=False):
         """
         Add a new constraint to the optimization problem. This constraint must satisfy DCP rules,
         i.e be either a linear equality constraint or convex inequality constraint.
@@ -207,8 +207,10 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         :type var_list: list or tuple of variable indices (int)
         :param pairwise: whether the constraint is broadcasted in a pairwise manner
         :type pairwise: bool, optional
+        :param block: whether the constraint uses the entire variable list
+        :type block: bool, optional
         """
-        if self.trade_horizon is None or 1:
+        if self.trade_horizon is (None or 1):
             return base_optimizer.BaseConvexOptimizer.add_constraint(self, new_constraint)
         if not callable(new_constraint):
             raise TypeError(
@@ -228,12 +230,14 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
             for _w_ in self._w:
                 self._constraints.append(new_constraint(_w_))
         else:
-            if not isinstance(var_list, (list, tuple)):
+            if not (isinstance(var_list, (list, tuple)) or var_list is None):
                 raise TypeError("var_list must be a list or tuple of variable indices")
-            for i in var_list:
-                self._constraints.append(new_constraint(self._w[i]))
+            if block:
+                self._constraints.append(new_constraint(self._w))
+            else:
+                for i in var_list:
+                    self._constraints.append(new_constraint(self._w[i]))
 
-    '''
     def add_sector_constraints(self, sector_mapper, sector_lower, sector_upper):
         """
         Adds constraints on the sum of weights of different groups of assets.
@@ -259,7 +263,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         :param sector_upper: upper bounds for each sector
         :type sector_upper: {str:float} dict
         """
-        if self.trade_horizon is None or 1:
+        if self.trade_horizon is (None or 1):
             return base_optimizer.BaseConvexOptimizer.add_sector_constraints(
                 self, sector_mapper, sector_lower, sector_upper
             )
@@ -273,7 +277,6 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         for sector in sector_lower:
             is_sector = [sector_mapper[t] == sector for t in self.tickers]
             self.add_constraint(lambda w: cp.sum(w[is_sector]) >= sector_lower[sector])
-    '''
 
     def weights_sum_to_one_constraints(self, broadcast=True, var_list=None):
         if broadcast:

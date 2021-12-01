@@ -51,20 +51,21 @@ def _objective_value(w, obj):
         return obj
 
 
-def portfolio_variance(w, cov_matrix):
+def portfolio_variance(w, cov_matrices):
     """
     Calculate the total portfolio variance (i.e square volatility).
     :param w: asset weights in the portfolio
     :type w: np.ndarray OR cp.Variable
-    :param cov_matrix: covariance matrix
-    :type cov_matrix: np.ndarray
+    :param cov_matrices: list of covariance matrices
+    :type cov_matrices: list of np.ndarray
     :return: value of the objective function OR objective function expression
     :rtype: float OR cp.Expression
     """
-    variance = sum([cp.quad_form(_w, cov_matrix) for _w in w])
+    variance = sum([cp.quad_form(_w, cov_matrices[i]) for i, _w in enumerate(w)])
     return _objective_value(w, variance)
 
 
+'''
 def portfolio_return(w, expected_returns, negative=True):
     """
     Calculate the (negative) mean return of a portfolio
@@ -80,6 +81,7 @@ def portfolio_return(w, expected_returns, negative=True):
     sign = -1 if negative else 1
     mu = w @ expected_returns
     return _objective_value(w, sign * mu)
+'''
 
 
 def sharpe_ratio(w, expected_returns, cov_matrix, risk_free_rate=0.02, negative=True):
@@ -170,6 +172,7 @@ def transaction_cost(w, w_prev, k=0.001):
     return _objective_value(w, k * cp.norm(w - w_prev, 1))
 
 
+'''
 def ex_ante_tracking_error(w, cov_matrix, benchmark_weights):
     """
     Calculate the (square of) the ex-ante Tracking Error, i.e
@@ -209,3 +212,4 @@ def ex_post_tracking_error(w, historic_returns, benchmark_returns):
     mean = cp.sum(x_i) / len(benchmark_returns)
     tracking_error = cp.sum_squares(x_i - mean)
     return _objective_value(w, tracking_error)
+'''
