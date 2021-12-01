@@ -9,8 +9,9 @@ import numpy as np
 import pandas as pd
 import cvxpy as cp
 
-from . import exceptions
-from . import objective_functions, mpo
+import exceptions
+import objective_functions
+import mpo
 
 
 class EfficientFrontier(mpo.BaseMPO):
@@ -50,6 +51,7 @@ class EfficientFrontier(mpo.BaseMPO):
         self,
         expected_returns,
         cov_matrices,
+        trade_horizon=None,
         weight_bounds=(0, 1),
         solver=None,
         verbose=False,

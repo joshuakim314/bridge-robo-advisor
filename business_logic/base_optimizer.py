@@ -16,8 +16,8 @@ import pandas as pd
 import cvxpy as cp
 import scipy.optimize as sco
 
-from . import objective_functions
-from . import exceptions
+import objective_functions
+import exceptions
 
 
 class BaseOptimizer:
@@ -171,7 +171,7 @@ class BaseConvexOptimizer(BaseOptimizer):
         self._solver = solver
         self._verbose = verbose
         self._solver_options = solver_options if solver_options else {}
-        self._map_bounds_to_constraints(weight_bounds)
+        # self._map_bounds_to_constraints(weight_bounds)
 
     def _map_bounds_to_constraints(self, test_bounds):
         """
