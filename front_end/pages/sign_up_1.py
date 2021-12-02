@@ -3,14 +3,14 @@ from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, de
 
 email_input = html.Div(
     [
-        dbc.Input(type="email", id="example-email", placeholder="Enter email"),
+        dbc.Input(type="email", id="email-su", placeholder="Enter email"),
     ],
     className="mb-3",
 )
 
 confirm_email = html.Div(
     [
-        dbc.Input(type="email", id="example-email", placeholder="Confirm email"),
+        dbc.Input(type="email", id="check-email-su", placeholder="Confirm email"),
     ],
     className="mb-3",
 )
@@ -19,7 +19,7 @@ password_input = html.Div(
     [
         dbc.Input(
             type="password",
-            id="example-password",
+            id="password-su",
             placeholder="Enter password",
         ),
     ],
@@ -30,7 +30,7 @@ confirm_password = html.Div(
     [
         dbc.Input(
             type="password",
-            id="example-password",
+            id="check-password-su",
             placeholder="Confirm password",
         ),
     ],
@@ -43,7 +43,7 @@ inline_name = dbc.Row(
             [
                 dbc.Input(
                     type="name",
-                    id="first-name",
+                    id="first-name-su",
                     placeholder="First Name",
                 ),
             ],
@@ -53,7 +53,7 @@ inline_name = dbc.Row(
             [
                 dbc.Input(
                     type="name",
-                    id="example-name-grid",
+                    id="last-name-su",
                     placeholder="Last Name",
                 ),
             ],
@@ -66,24 +66,25 @@ inline_name = dbc.Row(
 form = html.Div([
         html.Div(
             [
-                dbc.Progress(id="progress", value=50, animated=True, striped=True),
+                dbc.Progress(id="progress", value=33, animated=True, striped=True),
             ],
             style={'marginBottom': '0.2in'}
         ),
         dbc.Form([inline_name, email_input, confirm_email, password_input, confirm_password]),
         html.Div([
             dbc.Button("Back", color="primary", outline=True, href='/', className="me-3"),
-            dbc.Button("Continue", id='continue', color="primary", href='/main', className="me-3"),
+            dbc.Button("Continue", id='continue', color="primary", className="me-3"),
         ],
         )
 ], style={"width": "4in", "display": "inline-block", 'marginTop': '0.2in'}
 )
 
-sign_up = html.Div([
+sign_up_1 = html.Div([
     html.Div([
         html.Img(src='/assets/BridgeLogo.svg', style={'height':'2in', 'width':'4in'}),
     ], style={'align': 'center', 'marginTop': 50}
     ),
-    form
+    form,
+    html.P(id='invalid', style={'color': 'red', 'marginTop': '0.2in'})
 ], style={'textAlign': 'center'}
 )
