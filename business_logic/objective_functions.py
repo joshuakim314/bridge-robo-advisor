@@ -84,15 +84,15 @@ def portfolio_return(w, expected_returns, negative=True):
 '''
 
 
-def sharpe_ratio(w, expected_returns, cov_matrix, risk_free_rate=0.02, negative=True):
+def sharpe_ratio(w, expected_returns, cov_matrices, risk_free_rate=0.02, negative=True):
     """
     Calculate the (negative) Sharpe ratio of a portfolio
     :param w: asset weights in the portfolio
     :type w: np.ndarray OR cp.Variable
-    :param expected_returns: expected return of each asset
+    :param expected_returns: expected returns of each asset
     :type expected_returns: np.ndarray
-    :param cov_matrix: covariance matrix
-    :type cov_matrix: np.ndarray
+    :param cov_matrices: covariance matrices
+    :type cov_matrices: np.ndarray
     :param risk_free_rate: risk-free rate of borrowing/lending, defaults to 0.02.
                            The period of the risk-free rate should correspond to the
                            frequency of expected returns.
@@ -102,10 +102,10 @@ def sharpe_ratio(w, expected_returns, cov_matrix, risk_free_rate=0.02, negative=
     :return: (negative) Sharpe ratio
     :rtype: float
     """
-    mu = w @ expected_returns
-    sigma = cp.sqrt(cp.quad_form(w, cov_matrix))
+    mu = sum([_w @ expected_returns[i] - risk_free_rate for i, _w in enumerate(w)])
+    variance = sum([cp.quad_form(_w, cov_matrices[i]) for i, _w in enumerate(w)])
     sign = -1 if negative else 1
-    sharpe = (mu - risk_free_rate) / sigma
+    sharpe = mu / variance
     return _objective_value(w, sign * sharpe)
 
 
@@ -128,15 +128,15 @@ def L2_reg(w, gamma=1):
     return _objective_value(w, L2_reg)
 
 
-def quadratic_utility(w, expected_returns, cov_matrix, risk_aversion, negative=True):
+def quadratic_utility(w, expected_returns, cov_matrices, risk_aversion, negative=True):
     r"""
     Quadratic utility function, i.e :math:`\mu - \frac 1 2 \delta  w^T \Sigma w`.
     :param w: asset weights in the portfolio
     :type w: np.ndarray OR cp.Variable
-    :param expected_returns: expected return of each asset
+    :param expected_returns: expected returns of each asset
     :type expected_returns: np.ndarray
-    :param cov_matrix: covariance matrix
-    :type cov_matrix: np.ndarray
+    :param cov_matrices: covariance matrices
+    :type cov_matrices: np.ndarray
     :param risk_aversion: risk aversion coefficient. Increase to reduce risk.
     :type risk_aversion: float
     :param negative: whether quantity should be made negative (so we can minimise).
@@ -145,8 +145,8 @@ def quadratic_utility(w, expected_returns, cov_matrix, risk_aversion, negative=T
     :rtype: float OR cp.Expression
     """
     sign = -1 if negative else 1
-    mu = w @ expected_returns
-    variance = cp.quad_form(w, cov_matrix)
+    mu = sum([_w @ expected_returns[i] for i, _w in enumerate(w)])
+    variance = sum([cp.quad_form(_w, cov_matrices[i]) for i, _w in enumerate(w)])
 
     risk_aversion_par = cp.Parameter(
         value=risk_aversion, name="risk_aversion", nonneg=True
