@@ -12,6 +12,7 @@ import cvxpy as cp
 import exceptions
 import objective_functions
 import mpo
+import base_optimizer
 
 
 class EfficientFrontier(mpo.BaseMPO):
@@ -184,7 +185,7 @@ class EfficientFrontier(mpo.BaseMPO):
             self.add_constraint(lambda w: cp.sum(w) == 1)
         self._market_neutral = is_market_neutral
 
-    def min_volatility(self, target_return=None):
+    def min_volatility(self):
         """
         Minimise volatility.
         :return: asset weights for the volatility-minimising portfolio
@@ -195,13 +196,6 @@ class EfficientFrontier(mpo.BaseMPO):
         )
         for obj in self._additional_objectives:
             self._objective += obj
-        if target_return is not None:
-            self.add_constraint(
-                lambda w: cp.sum(
-                    [w[i] @ self.expected_returns[i] for i in range(self.trade_horizon)]
-                ) >= self.trade_horizon * target_return,
-                broadcast=False, block=True
-            )
         self.add_constraint(lambda w: cp.sum(w) == 1)
         return self._solve_cvxpy_opt_problem()
 
@@ -227,7 +221,7 @@ class EfficientFrontier(mpo.BaseMPO):
         else:
             return res
 
-    def max_sharpe(self, risk_free_rate=0.02):
+    def max_sharpe(self, risk_free_rate=0.02, uncertainty=None):
         """
         Maximise the Sharpe Ratio. The result is also referred to as the tangency portfolio,
         as it is the portfolio for which the capital market line is tangent to the efficient frontier.
@@ -247,8 +241,8 @@ class EfficientFrontier(mpo.BaseMPO):
 
         # max_sharpe requires us to make a variable transformation.
         # Here we treat w as the transformed variable.
-        self._objective = cp.quad_form(self._w, self.cov_matrix)
-        k = cp.Variable()
+        self._objective = sum([cp.quad_form(_w_, self.cov_matrices[i]) for i, _w_ in enumerate(self._w)])
+        k = cp.Variable(1)
 
         # Note: objectives are not scaled by k. Hence there are subtle differences
         # between how these objectives work for max_sharpe vs min_volatility
@@ -279,17 +273,20 @@ class EfficientFrontier(mpo.BaseMPO):
 
         # Transformed max_sharpe convex problem:
         self._constraints = [
-            (self.expected_returns - risk_free_rate).T @ self._w == 1,
-            cp.sum(self._w) == k,
-            k >= 0,
+            k >= 0
         ] + new_constraints
+        self.add_constraint(lambda w: cp.sum(w) == k)
+        for i in range(self.trade_horizon):
+            self.add_constraint(
+                lambda w: w @ (self.expected_returns[i] - risk_free_rate) == 1, broadcast=False, var_list=[i]
+            )
 
         self._solve_cvxpy_opt_problem()
         # Inverse-transform
-        self.weights = (self._w.value / k.value).round(16) + 0.0
+        self.weights = (self._w[0].value / k.value).round(16) + 0.0
         return self._make_output_weights()
 
-    def max_quadratic_utility(self, risk_aversion=1, market_neutral=False):
+    def max_quadratic_utility(self, risk_aversion=1, market_neutral=False, uncertainty=None):
         r"""
         Maximise the given quadratic utility, i.e:
         .. math::
@@ -314,7 +311,7 @@ class EfficientFrontier(mpo.BaseMPO):
             self._objective = objective_functions.quadratic_utility(
                 self._w,
                 self.expected_returns,
-                self.cov_matrix,
+                self.cov_matrices,
                 risk_aversion=risk_aversion,
             )
             for obj in self._additional_objectives:
@@ -323,6 +320,7 @@ class EfficientFrontier(mpo.BaseMPO):
             self._make_weight_sum_constraint(market_neutral)
         return self._solve_cvxpy_opt_problem()
 
+    '''
     def efficient_risk(self, target_volatility, market_neutral=False):
         """
         Maximise return for a target risk. The resulting portfolio will have a volatility
@@ -369,6 +367,7 @@ class EfficientFrontier(mpo.BaseMPO):
             self.add_constraint(lambda _: variance <= target_variance)
             self._make_weight_sum_constraint(market_neutral)
         return self._solve_cvxpy_opt_problem()
+    '''
 
     def efficient_return(self, target_return, market_neutral=False):
         """
@@ -385,12 +384,12 @@ class EfficientFrontier(mpo.BaseMPO):
         """
         if not isinstance(target_return, float) or target_return < 0:
             raise ValueError("target_return should be a positive float")
-        if not self._max_return_value:
-            self._max_return_value = copy.deepcopy(self)._max_return()
-        if target_return > self._max_return_value:
-            raise ValueError(
-                "target_return must be lower than the maximum possible return"
-            )
+        # if not self._max_return_value:
+        #     self._max_return_value = copy.deepcopy(self)._max_return()
+        # if target_return > self._max_return_value:
+        #     raise ValueError(
+        #         "target_return must be lower than the maximum possible return"
+        #     )
 
         update_existing_parameter = self.is_parameter_defined("target_return")
         if update_existing_parameter:
@@ -398,19 +397,78 @@ class EfficientFrontier(mpo.BaseMPO):
             self.update_parameter_value("target_return", target_return)
         else:
             self._objective = objective_functions.portfolio_variance(
-                self._w, self.cov_matrix
+                self._w, self.cov_matrices
             )
-            ret = objective_functions.portfolio_return(
-                self._w, self.expected_returns, negative=False
-            )
-
+            # ret = objective_functions.portfolio_return(self._w, self.expected_returns, negative=False)
             for obj in self._additional_objectives:
                 self._objective += obj
 
             target_return_par = cp.Parameter(name="target_return", value=target_return)
-            self.add_constraint(lambda _: ret >= target_return_par)
+            self.add_constraint(
+                lambda w: cp.sum(
+                    [w[j] @ self.expected_returns[j] for j in range(self.trade_horizon)]
+                ) >= self.trade_horizon * target_return_par, broadcast=False, block=True
+            )
+
             self._make_weight_sum_constraint(market_neutral)
         return self._solve_cvxpy_opt_problem()
+
+    def robust_efficient_frontier(self, target_return, uncertainty=None):
+        if not isinstance(target_return, float) or target_return < 0:
+            raise ValueError("target_return should be a positive float")
+
+        market_neutral = False
+        update_existing_parameter = self.is_parameter_defined("target_return")
+        if update_existing_parameter:
+            self._validate_market_neutral(market_neutral)
+            self.update_parameter_value("target_return", target_return)
+        else:
+            self._objective = objective_functions.portfolio_variance(
+                self._w, self.cov_matrices
+            )
+            # ret = objective_functions.portfolio_return(self._w, self.expected_returns, negative=False)
+            for obj in self._additional_objectives:
+                self._objective += obj
+
+            unc = 0.0
+            if uncertainty not in (None, 'box', 'ellipsoidal'):
+                raise ValueError("uncertainty type should either be box or ellipsoidal")
+            else:
+                target_return_par = cp.Parameter(name="target_return", value=target_return)
+                unc = self.param_uncertainty(num_observation=252)
+                if uncertainty == 'box':
+                    confidence_level = cp.Parameter(name="confidence_level", value=1.96)
+                    y = [cp.Variable(self.n_assets) for _ in range(self.trade_horizon)]
+                    self._constraints += [(y[j] >= self._w[j]) for j in range(self.trade_horizon)]
+                    self._constraints += [(y[j] >= -1 * self._w[j]) for j in range(self.trade_horizon)]
+                    self.add_constraint(
+                        lambda w: cp.sum(
+                            [w[j] @ self.expected_returns[j]
+                             - y[j] @ cp.multiply(confidence_level, np.diag(unc[j]))
+                             for j in range(self.trade_horizon)]
+                        ) >= self.trade_horizon * target_return_par,
+                        broadcast=False, block=True
+                    )
+                elif uncertainty == 'ellipsoidal':
+                    # confidence_level = cp.Parameter(name="confidence_level", value=2.706)
+                    # self.add_constraint(
+                    #     lambda w: cp.sum(
+                    #         [w[j] @ self.expected_returns[j]
+                    #          - (confidence_level * cp.sqrt(cp.quad_form(w[j], unc[j]**2)))
+                    #          for j in range(self.trade_horizon)]
+                    #     ) >= self.trade_horizon * target_return_par,
+                    #     broadcast=False, block=True
+                    # )
+                    raise NotImplementedError("not implemented yet")
+                else:
+                    raise NotImplementedError("only box and ellipsoidal robust models have been implemented")
+
+            self._make_weight_sum_constraint(market_neutral)
+        return self._solve_cvxpy_opt_problem()
+
+    def param_uncertainty(self, num_observation=252):
+        unc = [(np.diag(np.diag(cov))/num_observation) ** 0.5 for cov in self.cov_matrices]
+        return unc
 
     def portfolio_performance(self, verbose=False, risk_free_rate=0.02):
         """
