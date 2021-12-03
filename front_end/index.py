@@ -12,11 +12,9 @@ from pages.prefs_page import prefs_page
 
 from pages.not_yet_implemented import nyi_page
 
-
 from pages.test_page import test_page
 import callbacks
 from app import app
-
 
 
 app.layout = html.Div([
@@ -24,7 +22,10 @@ app.layout = html.Div([
     html.Div(id='page-content'),
     dcc.Store(id='account-info'),
     dcc.Store(id='portfolio-info'),
-    dcc.Store(id='past-deposits')
+    dcc.Store(id='past-deposits'),
+    dcc.Store(id='past-deposits-brief'),
+    dcc.Store(id='portfolio-graph-data'),
+    dcc.Store(id='portfolio-value')
 ])
 
 #Page Navigation

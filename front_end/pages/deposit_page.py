@@ -14,10 +14,10 @@ deposit_page = html.Div([
             html.Div(id='deposit-secret-div'),
             html.Div(id='withdraw-secret-div'),
             html.H2(id='total-deposit-info', style={'textAlign':'center', 'marginTop': '0.2in'}),
-            html.H2(['Deposit History'], style={'marginTop': '0.2in', 'textAlign': 'left'}),
+            html.H2(['Cash Transactions History'], style={'marginTop': '0.2in', 'textAlign': 'left'}),
             dash_table.DataTable(
                 id='deposits-table',
-                columns=[{'name': 'Date Time', 'id': 'Date Time'}, {'name': 'Amount', 'id': 'Amount'}],
+                columns=[{'name': 'Date Time', 'id': 'Date Time'}, {'name': 'Transaction', 'id': 'Comment'}],
                 css=[{'selector': '.row', 'rule': 'margin: 0'}],
             )
         ], style={'marginTop': '0.2in', 'marginLeft': '1.2in', 'marginRight': '1.2in', 'textAlign': 'center'}

@@ -1,11 +1,16 @@
+import collections
+import plotly.express as px
+import plotly.graph_objects as go
+
 import dash.exceptions
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, dependencies, no_update, MATCH, ALL
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output
 import time
+import pandas as pd
 
-from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits
+from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits, get_past_deposits_brief, get_portfolio_value_by_date
 
 from app import app
 
@@ -110,8 +115,8 @@ def new_user_data(n_clicks, fn, ln, em, cem, pw, cpw):
                 if (em == cem) and (pw == cpw):
                     push_new_user(conn, np.array([fn, ln, em, pw, 0, 0]))
                     user_data = pull_user_data(conn, em, pw)
-                    add_transaction(conn, em, 'cash', 0)
-                    print(user_data)
+                    add_transaction(conn, em, 'cash', 0, 'Initialize Account')
+                    #print(user_data)
                     return user_data, no_update, '/sign_up_cont'
                 else:
                     return no_update, 'Email or password do not match', no_update
@@ -135,10 +140,10 @@ def new_user_data(n_clicks, fn, ln, em, cem, pw, cpw):
 def update_user_risk_data(n_clicks, ur, uc, acc_info):
     #try:
     if n_clicks != 0:
-        print(acc_info['Email'], acc_info['Password'], ur, uc)
+        #print(acc_info['Email'], acc_info['Password'], ur, uc)
         update_risk_control(conn, acc_info['Email'], acc_info['Password'], ur, uc)
         user_data = pull_user_data(conn, acc_info['Email'], acc_info['Password'])
-        print(user_data)
+        #print(user_data)
         return user_data, no_update, '/main'
     else:
         return no_update, no_update, no_update
@@ -151,6 +156,11 @@ def update_user_risk_data(n_clicks, ur, uc, acc_info):
     [Output(component_id='account-info', component_property='data'),
      Output(component_id='portfolio-info', component_property='data'),
      Output(component_id='past-deposits', component_property='data'),
+     Output(component_id='past-deposits-brief', component_property='data'),
+
+     Output(component_id='portfolio-graph-data', component_property='data'),
+     Output(component_id='portfolio-value', component_property='data'),
+
      Output(component_id='invalid', component_property='children'),
      Output(component_id='url', component_property='pathname')],
     Input(component_id='login', component_property='n_clicks'),
@@ -167,11 +177,13 @@ def get_user_data(n_clicks, email, password):
                 user_data = pull_user_data(conn, email, password)
                 portfolio_data = get_portfolio_data(conn, email)
                 past_deposits = get_past_deposits(conn, email)
-                #print(user_data)
-                return user_data, portfolio_data, past_deposits, no_update, '/main'
+                past_deposits_brief = get_past_deposits_brief(conn, email)
+                portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, email)
+                #print('Got Past Deposits')
+                return user_data, portfolio_data, past_deposits, past_deposits_brief, portfolio_graph_data, portfolio_value, no_update, '/main'
             except:
                 #print('Failed Retreiving Password')
-                return no_update, no_update, no_update, 'Username or Password does not match an account on file', no_update
+                return no_update, no_update, no_update, no_update, no_update, no_update, 'Username or Password does not match an account on file', no_update
     except:
         raise dash.exceptions.PreventUpdate
 
@@ -262,10 +274,8 @@ def toggle_navbar_collapse(n, is_open):
     Input("portfolio-info", "data")]
 )
 def toggle_navbar_collapse(account_data, portfolio_data):
-    ret_string = f'Hi {account_data["First"]}, your total deposits equal ${portfolio_data[0]["Amount"]/100:,.2f}'
-    print(ret_string)
     try:
-        ret_string = f'Hi {account_data["First"]}, your total deposits equal ${portfolio_data[0]["Amount"]/100:,.2f}'
+        ret_string = f'Hi {account_data["First"]}, the cash component of your portfolio equals ${portfolio_data[0]["Amount"]/100:,.2f}'
         return ret_string
     except:
         raise PreventUpdate
@@ -310,46 +320,103 @@ def display_output(values, ranges):
 #Deposit Handle
 @app.callback(
     [Output('portfolio-info', 'data'),
-     Output('past-deposits', 'data')],
+     Output('past-deposits', 'data'),
+     Output('past-deposits-brief', 'data'),
+     Output(component_id='portfolio-graph-data', component_property='data'),
+     Output(component_id='portfolio-value', component_property='data')],
     Input('confirm-deposit', 'n_clicks'),
     [State('deposit-ammount', 'value'),
      State('account-info', 'data')]
 )
 def handle_deposit(n_clicks, deposit_amount, account_info):
     try:
-        deposit_data = get_past_deposits(conn, account_info['Email'])
         if deposit_amount > 0:
-            add_transaction(conn, account_info['Email'], 'cash', deposit_amount*100)
+            add_transaction(conn, account_info['Email'], 'cash', deposit_amount*100, f'Deposited ${deposit_amount:,.2f}')
             portfolio_data = get_portfolio_data(conn, account_info['Email'])
-            return portfolio_data, deposit_data
-        return no_update, deposit_data
+            deposit_data = get_past_deposits(conn, account_info['Email'])
+            deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
+            portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, account_info['Email'])
+            return portfolio_data, deposit_data, deposit_data_brief, portfolio_graph_data, portfolio_value
+        deposit_data = get_past_deposits(conn, account_info['Email'])
+        deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
+        return no_update, deposit_data, deposit_data_brief, no_update, no_update
     except:
         raise PreventUpdate
 
 #Withdraw Handle
 @app.callback(
     [Output('portfolio-info', 'data'),
-     Output('past-deposits', 'data')],
+     Output('past-deposits', 'data'),
+     Output('past-deposits-brief', 'data'),
+     Output(component_id='portfolio-graph-data', component_property='data'),
+     Output(component_id='portfolio-value', component_property='data')],
     Input('confirm-withdraw', 'n_clicks'),
     [State('withdraw-ammount', 'value'),
      State('account-info', 'data')]
 )
-def handle_deposit(n_clicks, deposit_amount, account_info):
+def handle_withdraw(n_clicks, deposit_amount, account_info):
     try:
         if deposit_amount > 0:
-            add_transaction(conn, account_info['Email'], 'cash', -1*deposit_amount*100)
+            add_transaction(conn, account_info['Email'], 'cash', -1*deposit_amount*100, f'Withdrew ${deposit_amount:,.2f}')
             portfolio_data = get_portfolio_data(conn, account_info['Email'])
             deposit_data = get_past_deposits(conn, account_info['Email'])
-            return portfolio_data, deposit_data
+            deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
+            portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, account_info['Email'])
+            return portfolio_data, deposit_data, deposit_data_brief, portfolio_graph_data, portfolio_value
         deposit_data = get_past_deposits(conn, account_info['Email'])
-        return no_update, deposit_data
+        deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
+        return no_update, deposit_data, deposit_data_brief, no_update, no_update
     except:
         raise PreventUpdate
 
+#Get deposits table
 @app.callback(
     Output('deposits-table', 'data'),
     Input('past-deposits', 'data')
 )
 
 def print_deposits_table(past_deposits):
-    return past_deposits
+    try:
+        return past_deposits
+    except:
+        raise PreventUpdate
+
+#Get shorter deposits table
+@app.callback(
+    Output('deposits-table-brief', 'data'),
+    Input('past-deposits-brief', 'data')
+)
+
+def print_deposits_table_brief(past_deposits):
+    try:
+        return past_deposits
+    except:
+        raise PreventUpdate
+
+#Show Main Page Graph and Header
+@app.callback(
+    [Output('portfolio-graph', 'figure'),
+     Output('portfolio-highlight', 'children')],
+    [Input('account-info', 'data'),
+     Input('portfolio-value', 'data'),
+     Input('portfolio-graph-data', 'data')]
+)
+def get_main_page_portfolio_info(account_data, account_value, data):
+
+    dff = pd.read_json(data, orient='split')
+    #print(dff)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=dff['date'], y=dff['value'], line=dict(color="#66A593")))
+    #figure = px.line(dff, x='date', y='value', title='Portfolio Value', template='plotly_white', color='green')
+    ret_string = f'Hi {account_data["First"]}, you currently have ${account_value["portfolio_value"]:,.2f} invested'
+
+    fig.update_layout(
+        title="Portfolio Value",
+        xaxis_title="Date",
+        yaxis_title="Portfolio Value",
+        template="plotly_white"
+    )
+    fig.update_yaxes(tickprefix="$")
+
+    return fig, ret_string
+
