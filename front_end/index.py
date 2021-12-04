@@ -25,7 +25,8 @@ app.layout = html.Div([
     dcc.Store(id='past-deposits'),
     dcc.Store(id='past-deposits-brief'),
     dcc.Store(id='portfolio-graph-data'),
-    dcc.Store(id='portfolio-value')
+    dcc.Store(id='portfolio-value'),
+    dcc.Store(id='all-stock-list')
 ])
 
 #Page Navigation

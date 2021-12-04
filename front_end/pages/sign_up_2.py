@@ -4,7 +4,10 @@ from dash import Dash, Input, Output, State, html, dcc, dash_table, callback, de
 ret = html.Div(
     [
         dbc.Label("Target Returns", html_for="slider", id='ret'),
-        dcc.Slider(id="user-return", min=0, max=100, step=1, value=20, tooltip={"placement": "bottom", "always_visible": True}),
+        dcc.Slider(id="user-return", min=0, max=100, step=1, value=20, tooltip={"placement": "bottom", "always_visible": True},
+                   marks={0: {'label': '0%', 'style': {'color': '#313131'}},
+                          100: {'label': '100%', 'style': {'color': '#313131'}}
+                          },),
     ],
     className="mb-3",
 )
@@ -12,7 +15,10 @@ ret = html.Div(
 risk = html.Div(
     [
         dbc.Label("Risk Tolerance", html_for="slider", id='risk'),
-        dcc.Slider(id="user-risk", min=0, max=100, step=1, value=70, tooltip={"placement": "bottom", "always_visible": True}),
+        dcc.Slider(id="user-risk", min=0, max=100, step=1, value=70, tooltip={"placement": "bottom", "always_visible": True},
+                   marks={0: {'label': '0%', 'style': {'color': '#313131'}},
+                          100: {'label': '100%', 'style': {'color': '#313131'}}
+                          },),
     ],
     className="mb-3",
 )
@@ -20,7 +26,24 @@ risk = html.Div(
 control = html.Div(
     [
         dbc.Label("User Portfolio Control", html_for="slider", id='contr'),
-        dcc.Slider(id="user-control", min=0, max=100, step=1, value=50, tooltip={"placement": "bottom", "always_visible": True}),
+        dcc.Slider(id="user-control", min=0, max=100, step=1, value=50, tooltip={"placement": "bottom", "always_visible": True},
+                   marks={0: {'label': '0%', 'style': {'color': '#313131'}},
+                          100: {'label': '100%', 'style': {'color': '#313131'}}
+                          },
+                   ),
+
+    ],
+    className="mb-3",
+)
+
+horizon = html.Div(
+    [
+        dbc.Label("User Investment Horizon", html_for="slider", id='horiz'),
+        dcc.Slider(id="user-horizon", min=1, max=24, step=1, value=12, tooltip={"placement": "bottom", "always_visible": True},
+                   marks={1: {'label': '1 Month', 'style': {'color': '#313131'}},
+                          24: {'label': '24 Months', 'style': {'color': '#313131'}}
+                          },
+                   ),
 
     ],
     className="mb-3",
@@ -48,19 +71,19 @@ form = html.Div([
             style={'marginBottom': '0.2in'}
         ),
         card,
-        dbc.Form([ret, risk, control]),
+        dbc.Form([ret, risk, control, horizon]),
         html.Div([
             dbc.Button("Back", color="primary", outline=True, href='/', className="me-3"),
             dbc.Button("Continue", id='continue-2', color="primary", className="me-3"),
         ],
         )
-], style={"width": "4in", "display": "inline-block", 'marginTop': '0.2in'}
+], style={"width": "4in", "display": "inline-block", 'marginTop': '0in'}
 )
 
 sign_up_2 = html.Div([
     html.Div([
         html.Img(src='/assets/BridgeLogo.svg', style={'height':'2in', 'width':'4in'}),
-    ], style={'align': 'center', 'marginTop': 50}
+    ], style={'align': 'center', 'marginTop': 0}
     ),
     form,
     html.P(id='invalid', style={'color': 'red', 'marginTop': '0.2in'}),
@@ -75,6 +98,10 @@ sign_up_2 = html.Div([
     dbc.Tooltip(
             "This parameter sets the minimum percentage of your portfolio that will be composed of your own stock picks, with the remaining being hedges decided by our portfolio optimization techniques.",
             target="contr",
+        ),
+    dbc.Tooltip(
+            "NEED TO FILL THIS OUT",
+            target="horiz",
         ),
 ], style={'textAlign': 'center'}
 )

@@ -39,8 +39,8 @@ def push_new_user(connection, user_array):
 
     #print('formatting dict to_record')
 
-    sql = '''INSERT INTO clients (first, last, email, password, risk, control)
-    VALUES(%s, %s, %s, %s, %s, %s)'''
+    sql = '''INSERT INTO clients (first, last, email, password, risk, control, horizon, return, max_card)
+    VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)'''
     cursor.execute(sql, user_array)
 
     #print("end")
@@ -55,22 +55,25 @@ def pull_user_data(connection, email, pswrd):
     selected = cursor.fetchall()
     cursor.close()
     #print("end")
-    df = convert_db_fetch_to_df(selected, column_names=['First', 'Last', 'Email', 'Password', 'Risk', 'Control'])
+    df = convert_db_fetch_to_df(selected, column_names=['First', 'Last', 'Email', 'Password', 'Risk', 'Control', 'Horizon', 'Return', 'Max'])
     dct = {
         'First': df['First'][0],
         'Last': df['Last'][0],
         'Email': df['Email'][0],
         'Password': df['Password'][0],
         'Risk': df['Risk'][0],
-        'Control': df['Control'][0]
+        'Control': df['Control'][0],
+        'Horizon': df['Horizon'][0],
+        'Return': df['Return'][0],
+        'Max': df['Max'][0]
     }
     return dct
 
-def update_risk_control(connection, email, pswrd, risk, control):
+def update_risk_control(connection, email, pswrd, risk, control, horizon, ret, max_card):
     connection.autocommit = True
     cursor = connection.cursor()
 
-    sql = f'''UPDATE clients SET risk = {risk}, control = {control} WHERE (email like'{email}') AND (password like '{pswrd}')'''
+    sql = f'''UPDATE clients SET risk = {risk}, control = {control}, horizon={horizon}, return={ret}, max_card={max_card} WHERE (email like'{email}') AND (password like '{pswrd}')'''
 
     cursor.execute(sql)
 
@@ -118,7 +121,7 @@ def get_portfolio_data(connection, email):
 def get_past_deposits_brief(connection, email):
     connection.autocommit = True
     cursor = connection.cursor()
-    sql = f'''SELECT * FROM transactions WHERE (email like '{email}') AND (ticker like 'cash') AND (NOT amount = 0)'''
+    sql = f'''SELECT * FROM transactions WHERE (email like '{email}') AND (ticker like 'cash')'''
 
     cursor.execute(sql)
     selected = cursor.fetchall()
@@ -140,7 +143,7 @@ def get_past_deposits_brief(connection, email):
 def get_past_deposits(connection, email):
     connection.autocommit = True
     cursor = connection.cursor()
-    sql = f'''SELECT * FROM transactions WHERE (email like '{email}') AND (ticker like 'cash') AND (NOT amount = 0)'''
+    sql = f'''SELECT * FROM transactions WHERE (email like '{email}') AND (ticker like 'cash')'''
 
     cursor.execute(sql)
     selected = cursor.fetchall()
@@ -150,6 +153,7 @@ def get_past_deposits(connection, email):
     df = df[['Date Time', 'Amount', 'Comment']]
     df['Amount'] = df['Amount'].div(100)
     df = df.sort_values(by = 'Date Time', ascending = False)
+    #print(df)
     df["Date Time"] = df["Date Time"].dt.strftime("%A %B %d, %Y - %H:%M:%S")
     #print(df)
     #print([{"name": i, "id": i} for i in df.columns])
@@ -170,7 +174,7 @@ def transact_stock(connection, email, stock, ammount):
     selected = cursor.fetchall()
     df = convert_db_fetch_to_df(selected, column_names=['date'])
     max_date = df['date'][0]
-    print(max_date)
+    #print(max_date)
 
     #Calculate Stocks Cost and store as value_of_shares
     sql = f"""
@@ -181,7 +185,7 @@ def transact_stock(connection, email, stock, ammount):
     selected = cursor.fetchall()
     df = convert_db_fetch_to_df(selected, column_names=['adj_close'])
     stock_value = int(100*ammount*df['adj_close'][0])+1
-    print(stock_value)
+    #print(stock_value)
     if ammount > 0:
         transact_cash_statement = f'Bought {ammount} shares of {stock} for ${stock_value/100:,.2f}'
         transact_stock_statement = f'Bought {ammount} shares of {stock}'
@@ -238,7 +242,7 @@ def get_portfolio_value_by_date(connection, email):
     min_date = df['date'].min().strftime('%Y-%m-%d')
     max_date = df['date'].max().strftime('%Y-%m-%d')
     list_tickers = list(set(df['ticker'].to_list()))
-    print(list_tickers)
+    #print(list_tickers)
     if len(list_tickers) > 1:
         string_tickers = '('
         for tick in list_tickers[:-1]:
@@ -250,18 +254,50 @@ def get_portfolio_value_by_date(connection, email):
 
     #Get price info for unique tickers, between min and max date
 
+
+    ### Start hitting prices tables ###
     sql = f'''
-        SELECT date, ticker, adj_close FROM prices WHERE (date BETWEEN '{min_date}' AND '{max_date}') AND (ticker IN {string_tickers})
+        SELECT date, ticker, adj_close FROM canadianetfs WHERE (date BETWEEN '{min_date}' AND '{max_date}') AND (ticker IN {string_tickers})
         '''
 
     cursor.execute(sql)
     selected = cursor.fetchall()
-    dfpx = convert_db_fetch_to_df(selected, column_names=['date', 'ticker', 'adj_close'])
+    cadetfs = convert_db_fetch_to_df(selected, column_names=['date', 'ticker', 'adj_close'])
+
+    sql = f'''
+            SELECT date, ticker, adj_close FROM americanetfs WHERE (date BETWEEN '{min_date}' AND '{max_date}') AND (ticker IN {string_tickers})
+            '''
+
+    cursor.execute(sql)
+    selected = cursor.fetchall()
+    ametfs = convert_db_fetch_to_df(selected, column_names=['date', 'ticker', 'adj_close'])
+
+    sql = f'''
+            SELECT date, ticker, adj_close FROM spy WHERE (date BETWEEN '{min_date}' AND '{max_date}') AND (ticker IN {string_tickers})
+            '''
+
+    cursor.execute(sql)
+    selected = cursor.fetchall()
+    spy = convert_db_fetch_to_df(selected, column_names=['date', 'ticker', 'adj_close'])
+
+    sql = f'''
+            SELECT date, ticker, adj_close FROM tsx60 WHERE (date BETWEEN '{min_date}' AND '{max_date}') AND (ticker IN {string_tickers})
+            '''
+
+    cursor.execute(sql)
+    selected = cursor.fetchall()
+    tsx60 = convert_db_fetch_to_df(selected, column_names=['date', 'ticker', 'adj_close'])
+
+    #print(tsx60)
+
+    dfpx = cadetfs.append(ametfs, ignore_index=True)
+    dfpx = dfpx.append(spy, ignore_index=True)
+    dfpx = dfpx.append(tsx60, ignore_index=True)
+    #print(dfpx)
+
     cursor.close()
 
     dfpx['date'] = pd.to_datetime(dfpx['date'])
-
-
     df.set_index(['date', 'ticker'], inplace=True)
 
     unique_tickers = df.index.unique(level='ticker')
@@ -293,6 +329,7 @@ def get_portfolio_value_by_date(connection, email):
     df.fillna(0, inplace=True)
 
     df['value'] = df['cumAmount']*df['adj_close']
+    #print(df)
     df = df.round(2)
 
     df = df.reset_index(level=1)
@@ -304,12 +341,40 @@ def get_portfolio_value_by_date(connection, email):
 
     return data, final_value
 
-#get_portfolio_value_by_date(conn, 'joshuakim314@gmail.com')
+def get_all_tickers(connection):
+    connection.autocommit = True
+    cursor = connection.cursor()
+
+    sql = f'''SELECT DISTINCT(ticker) FROM spy'''
+
+    cursor.execute(sql)
+    selected = cursor.fetchall()
+    spy = convert_db_fetch_to_df(selected, column_names=['ticker'])
+
+    sql = f'''SELECT DISTINCT(ticker) FROM tsx60'''
+
+    cursor.execute(sql)
+    selected = cursor.fetchall()
+    tsx60 = convert_db_fetch_to_df(selected, column_names=['ticker'])
+
+    dfpx = spy.append(tsx60, ignore_index=True)
+    cursor.close()
+
+    ret_dict = {'stocks': dfpx['ticker'].to_list()}
+    # print("end")
+    return ret_dict
+
+#print(get_all_tickers(conn))
+
+
+#get_portfolio_value_by_date(conn, 'aidanjones55@gmail.com')
 
 #transact_stock(conn, 'aidanjones55@gmail.com', 'XIU.TO', 2)
-
-#get_past_deposits_brief(conn, 'aidanjones55@gmail.com')
 #wipe_table(conn, 'clients')
 #wipe_table(conn, 'transactions')
 #add_transaction(conn, 'aidanjones55@gmail.com', 'cash', 1000)
 
+
+#add_transaction(conn, 'aidanjones55@gmail.com', 'cash', 0, 'Initialize Account')
+#get_past_deposits(conn, 'aidanjones55@gmail.com')
+#print(pull_user_data(conn, 'aidanjones55@gmail.com', 'admin'))

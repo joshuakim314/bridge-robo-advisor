@@ -10,7 +10,7 @@ from dash.dependencies import Input, Output
 import time
 import pandas as pd
 
-from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits, get_past_deposits_brief, get_portfolio_value_by_date
+from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits, get_past_deposits_brief, get_portfolio_value_by_date, get_all_tickers
 
 from app import app
 
@@ -99,7 +99,8 @@ withdrawForm = html.Div([
 @app.callback(
     [Output(component_id='account-info', component_property='data'),
      Output(component_id='invalid', component_property='children'),
-     Output(component_id='url', component_property='pathname')],
+     Output(component_id='url', component_property='pathname'),
+     Output(component_id='all-stock-list', component_property='data')],
     Input(component_id='continue', component_property='n_clicks'),
     [State(component_id='first-name-su', component_property='value'),
      State(component_id='last-name-su', component_property='value'),
@@ -110,20 +111,22 @@ withdrawForm = html.Div([
 )
 def new_user_data(n_clicks, fn, ln, em, cem, pw, cpw):
     try:
-        if len(fn) > 0 and len(ln) > 0 and len(em) and len(cem) and len(pw) and len(cpw):
+        if len(fn) > 0 and len(ln) > 0 and len(em) > 0 and len(cem) > 0 and len(pw) > 0 and len(cpw) > 0:
             try:
                 if (em == cem) and (pw == cpw):
-                    push_new_user(conn, np.array([fn, ln, em, pw, 0, 0]))
+                    push_new_user(conn, np.array([fn, ln, em, pw, 70, 50, 20, 2, 50]))
                     user_data = pull_user_data(conn, em, pw)
                     add_transaction(conn, em, 'cash', 0, 'Initialize Account')
+                    stock_list = get_all_tickers(conn)
+                    #print(stock_list)
                     #print(user_data)
-                    return user_data, no_update, '/sign_up_cont'
+                    return user_data, no_update, '/sign_up_cont', stock_list
                 else:
-                    return no_update, 'Email or password do not match', no_update
+                    return no_update, 'Email or password do not match', no_update, no_update
 
             except:
                 #print('Failed Retreiving Password')
-                return no_update, 'Error Occured', no_update
+                return no_update, 'Error Occured', no_update, no_update
     except:
         raise dash.exceptions.PreventUpdate
 
@@ -131,24 +134,29 @@ def new_user_data(n_clicks, fn, ln, em, cem, pw, cpw):
 @app.callback(
     [Output(component_id='account-info', component_property='data'),
      Output(component_id='invalid', component_property='children'),
-     Output(component_id='url', component_property='pathname')],
+     Output(component_id='url', component_property='pathname'),
+     Output(component_id='portfolio-graph-data', component_property='data'),
+     Output(component_id='portfolio-value', component_property='data')],
     Input(component_id='continue-2', component_property='n_clicks'),
     [State(component_id='user-risk', component_property='value'),
      State(component_id='user-control', component_property='value'),
+     State(component_id='user-horizon', component_property='value'),
+     State(component_id='user-return', component_property='value'),
      State(component_id='account-info', component_property='data')]
 )
-def update_user_risk_data(n_clicks, ur, uc, acc_info):
-    #try:
-    if n_clicks != 0:
-        #print(acc_info['Email'], acc_info['Password'], ur, uc)
-        update_risk_control(conn, acc_info['Email'], acc_info['Password'], ur, uc)
-        user_data = pull_user_data(conn, acc_info['Email'], acc_info['Password'])
-        #print(user_data)
-        return user_data, no_update, '/main'
-    else:
-        return no_update, no_update, no_update
-    #except:
-        #raise dash.exceptions.PreventUpdate
+def update_user_risk_data(n_clicks, ur, uc, uh, uret, acc_info):
+    try:
+        if n_clicks != 0:
+            #print(acc_info['Email'], acc_info['Password'], ur, uc)
+            update_risk_control(conn, acc_info['Email'], acc_info['Password'], ur, uc, uh, uret, 35)
+            user_data = pull_user_data(conn, acc_info['Email'], acc_info['Password'])
+            portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, acc_info['Email'])
+            #print(user_data)
+            return user_data, no_update, '/main', portfolio_graph_data, portfolio_value
+        else:
+            return no_update, no_update, no_update
+    except:
+        raise dash.exceptions.PreventUpdate
 
 
 #Login and Grab User Info
@@ -160,6 +168,7 @@ def update_user_risk_data(n_clicks, ur, uc, acc_info):
 
      Output(component_id='portfolio-graph-data', component_property='data'),
      Output(component_id='portfolio-value', component_property='data'),
+     Output(component_id='all-stock-list', component_property='data'),
 
      Output(component_id='invalid', component_property='children'),
      Output(component_id='url', component_property='pathname')],
@@ -179,11 +188,12 @@ def get_user_data(n_clicks, email, password):
                 past_deposits = get_past_deposits(conn, email)
                 past_deposits_brief = get_past_deposits_brief(conn, email)
                 portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, email)
+                all_stocks = get_all_tickers(conn)
                 #print('Got Past Deposits')
-                return user_data, portfolio_data, past_deposits, past_deposits_brief, portfolio_graph_data, portfolio_value, no_update, '/main'
+                return user_data, portfolio_data, past_deposits, past_deposits_brief, portfolio_graph_data, portfolio_value, all_stocks, no_update, '/main'
             except:
                 #print('Failed Retreiving Password')
-                return no_update, no_update, no_update, no_update, no_update, no_update, 'Username or Password does not match an account on file', no_update
+                return no_update, no_update, no_update, no_update, no_update, no_update, no_update, 'Username or Password does not match an account on file', no_update
     except:
         raise dash.exceptions.PreventUpdate
 
@@ -279,43 +289,6 @@ def toggle_navbar_collapse(account_data, portfolio_data):
         return ret_string
     except:
         raise PreventUpdate
-
-#Dynamically add stock prefs
-@app.callback(
-    Output('dropdown-container', 'children'),
-    Input('add-filter', 'n_clicks'),
-    State('dropdown-container', 'children'))
-def display_dropdowns(n_clicks, children):
-    new_dropdown = html.Div([
-        dcc.Dropdown(
-        id={
-            'type': 'filter-dropdown',
-            'index': n_clicks
-        },
-        options=[{'label': i, 'value': i} for i in ['NYC', 'MTL', 'LA', 'TOKYO']]
-        ),
-        dcc.RangeSlider(id="input-range", min=0, max=100, value=[0, 100])
-    ], style={"width": "4in", "display": "inline-block", 'marginTop': '0.05in'}
-    )
-    children.append(new_dropdown)
-
-    return children
-
-@app.callback(
-    Output('dropdown-container-output', 'children'),
-    [Input({'type': 'filter-dropdown', 'index': ALL}, 'value'),
-     Input({'type': 'input-range', 'index': ALL}, 'value')]
-)
-def display_output(values, ranges):
-    stocks = html.Div([
-        html.Div('Dropdown {} = {}'.format(i + 1, value))
-        for (i, value) in enumerate(values)
-    ])
-    ranges = html.Div([
-        html.Div('Dropdown {} = {}'.format(i + 1, ranges))
-        for (i, ranges) in enumerate(ranges)
-    ])
-    return html.Div([stocks, ranges])
 
 #Deposit Handle
 @app.callback(
@@ -419,4 +392,117 @@ def get_main_page_portfolio_info(account_data, account_value, data):
     fig.update_yaxes(tickprefix="$")
 
     return fig, ret_string
+
+#Set values of account parameters in prefs page
+@app.callback(
+    [Output('user-risk-set', 'value'),
+     Output('user-return-set', 'value'),
+     Output('user-control-set', 'value'),
+     Output('user-horizon-set', 'value'),
+     Output('user-card-set', 'value'),
+     Output('account-info', 'data')],
+    Input('confirm-preferences', 'n_clicks'),
+    [State('user-risk-set', 'value'),
+     State('user-return-set', 'value'),
+     State('user-control-set', 'value'),
+     State('user-horizon-set', 'value'),
+     State('user-card-set', 'value'),
+     State('account-info', 'data')]
+)
+def set_account_params_vals(n_clicks, urisk, ureturn, ucontrol, uhorizon, max_card, data):
+    try:
+        update_risk_control(conn, data['Email'], data['Password'], urisk, ucontrol, uhorizon, ureturn, max_card)
+
+        data['Risk'] = urisk
+        data['Return'] = ureturn
+        data['Control'] = ucontrol
+        data['Horizon'] = uhorizon
+        data['Max'] = max_card
+
+        return no_update, no_update, no_update, no_update, no_update, data
+    except:
+        try:
+            return data['Risk'], data['Return'], data['Control'], data['Horizon'], data['Max'], no_update
+        except:
+            raise PreventUpdate
+
+#Dynamically add stock picks
+@app.callback(
+    Output('dropdown-container', 'children'),
+    Input('add-filter', 'n_clicks'),
+    [State('dropdown-container', 'children'),
+     State('all-stock-list', 'data')])
+def display_dropdowns(n_clicks, children, stock_list):
+    new_dropdown = html.Div([
+        dcc.Dropdown(
+            id={
+                'type': 'stock-pick',
+                'index': n_clicks
+            },
+            options=[{'label': i, 'value': i} for i in stock_list['stocks']]
+            ),
+        dcc.RangeSlider(
+            id={
+                'type': 'stock-min-max',
+                'index': n_clicks
+            },
+            min=0, max=100, value=[0, 100],
+            marks={
+                0: {'label': '0%', 'style': {'color': '#313131'}},
+                100: {'label': '100%', 'style': {'color': '#313131'}}
+            },
+            tooltip={"placement": "bottom", "always_visible": False}
+            )
+    ], style={"width": "3in", "display": "inline-block", 'marginTop': '0.05in'}
+    )
+    children.append(new_dropdown)
+
+    return children
+
+#Confirm Stock Pick
+@app.callback(
+    [Output('prefs-messy-succ', 'children'),
+     Output('prefs-mess-warning', 'children')],
+    Input('confirm-preferences', 'n_clicks'),
+    [State({'type': 'stock-pick', 'index': ALL}, 'value'),
+     State({'type': 'stock-min-max', 'index': ALL}, 'value'),
+     State('user-control-set', 'value')
+     ]
+)
+def display_output(n_clicks, values, ranges, uc):
+    try:
+        stocks = {}
+        for (i, stk) in enumerate(values):
+            #print(f'{i}: {stk}')
+            stocks[i] = stk
+        final = {}
+        for (i, ran) in enumerate(ranges):
+            #print(f'{i}: {ran}')
+            final[i] = {'stock': stocks[i],
+                        'range': ran}
+
+        #Checks for invalid constraints:
+        min = 0
+        max = 0
+        seen_stocks = set()
+        for key in final.keys():
+            #print(final[key]['stock'])
+            if final[key]['stock'] in seen_stocks:
+                return None, f'Duplicate stocks {final[key]["stock"]}, please change one or reload page to reset'
+            seen_stocks.add(final[key]["stock"])
+            min += final[key]['range'][0]
+            max += final[key]['range'][1]
+
+        if len(seen_stocks) == 0:
+            return None, 'Please select at least one stock.'
+
+        if min > 100:
+            return None, 'Minimum values resulting in infeasible constraints, please lower them.'
+
+        if max < uc:
+            return None, 'Maximum values resulting in infeasible constraints, please raise them or lower User Portfolio Control.'
+
+        return 'Stock Pick Success', None
+    except:
+        raise PreventUpdate
 
