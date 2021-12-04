@@ -18,6 +18,14 @@ Additionally, we provide utility functions to convert from returns to prices and
 import warnings
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import sklearn
+import pmdarima as pm
+import arch
+from arch.__future__ import reindexing
+
+import psycopg2.extensions
+psycopg2.extensions.register_adapter(np.int64, psycopg2._psycopg.AsIs)
 
 
 def returns_from_prices(prices, log_returns=False):
@@ -793,15 +801,204 @@ class CovarianceShrinkage:
         return self._format_and_annualize(shrunk_cov)
 
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+def execute_sql(sql, columns=None, suppress=True):
+    conn = psycopg2.connect(
+        host='database-1.csuf8nkuxrw3.us-east-2.rds.amazonaws.com',
+        port=5432,
+        user='postgres',
+        password='capstone',
+        database='can2_etfs'
+    )
 
-    df = pd.read_csv("data/stock_prices.csv", parse_dates=True, index_col="date")
-    past_df, future_df = df.iloc[:-250], df.iloc[-250:]
-    future_cov = sample_cov(future_df)
-    sample_cov = sample_cov(past_df)
-    plot = plt.figure()
-    plt.pcolor(cov_to_corr(sample_cov))
-    plot = plt.figure()
-    plt.pcolor(cov_to_corr(future_cov))
-    plt.show()
+    if not suppress: print('connected to postgres db')
+
+    conn.autocommit = True
+    cursor = conn.cursor()
+    if not suppress: print(f'executing the command: {sql}')
+    cursor.execute(sql)
+    selected = cursor.fetchall()
+    selected = convert_db_fetch_to_df(selected, columns)
+    cursor.close()
+    if not suppress: print("postgres db connection closed")
+    return selected
+
+
+def convert_db_fetch_to_df(fetched, column_names=None):
+    """
+    This method converts the cursor.fetchall() output of SELECT query into a Pandas dataframe.
+    :param fetched: the output of SELECT query
+    :type fetched: list of row tuples
+    :param column_names: column names to use for the dataframe
+    :type column_names: list of column names
+    :return: converted dataframe
+    :rtype: Pandas dataframe
+    """
+    return pd.DataFrame(fetched, columns=column_names)
+
+
+def get_factors(start, end, freq='monthly'):
+    table = 'fama' if freq == 'monthly' else 'fama_daily' if freq == 'daily' else None
+    if not table:
+        raise ValueError('frequency must be daily or monthly')
+    sql = f'''SELECT * FROM {table} WHERE date BETWEEN '{start}' AND '{end}';''' if freq == 'daily' \
+        else f'''SELECT * FROM {table} WHERE date BETWEEN {start} AND {end};'''
+    factor_columns = ['date', 'excess', 'smb', 'hml', 'rmw', 'cma', 'riskfree']
+    selected = execute_sql(sql, factor_columns)
+    selected.set_index('date', inplace=True)
+    return selected
+
+
+def get_returns(ticker, table, start, end, freq='daily'):
+    sql = f'''SELECT * FROM {table} WHERE ticker = '{ticker}' AND date BETWEEN '{start}' AND '{end}';'''
+    stock_columns = ['date', 'open', 'high', 'low', 'close', 'adj_close', 'volume', 'ticker']
+    selected = execute_sql(sql, stock_columns)
+    selected.set_index('date', inplace=True)
+    selected.drop(columns=['ticker'], inplace=True)
+    return returns_from_prices(selected) if freq == 'daily' else get_monthly_returns(returns_from_prices(selected))
+
+
+def MLR(X_train, y_train):
+    mlr = sklearn.linear_model.LinearRegression()
+    mlr.fit(X_train, y_train)
+    r_sq = mlr.score(X_train, y_train)
+    print(r_sq)
+    print('intercept:', mlr.intercept_)
+    print('slope:', mlr.coef_)
+    return mlr
+
+
+def factor_forecast(factors, trade_horizon, r=2, s=2):
+    # fit ARIMA on returns
+    arima_model_fitted = pm.auto_arima(factors, start_p=1, start_q=1, d=0, max_p=5, max_q=5,
+                                             out_of_sample_size=trade_horizon, suppress_warnings=True,
+                                             stepwise=True, error_action='ignore')
+    p, d, q = arima_model_fitted.order
+    print(f'arima model: p={p}, d={d}, q={q}')
+    print(arima_model_fitted.summary())
+
+    arima_residuals = arima_model_fitted.arima_res_.resid
+    # fit a GARCH(r,s) model on the residuals of the ARIMA model
+    garch = arch.arch_model(arima_residuals, p=r, q=s)
+    garch_fitted = garch.fit()
+    print(garch_fitted.summary())
+
+    # Use ARIMA to predict mu
+    predicted_mu = arima_model_fitted.predict(n_periods=trade_horizon)[0]
+    # Use GARCH to predict the residual
+    garch_forecast = garch_fitted.forecast(horizon=trade_horizon)
+    # predicted_et = garch_forecast.mean['h.1'].iloc[-1]
+    # Combine both models' output: yt = mu + et
+    # prediction = predicted_mu + predicted_et
+    print(arima_model_fitted.predict(n_periods=trade_horizon))
+    print(garch_forecast.mean)
+    print(garch_forecast.residual_variance)
+    print(garch_forecast.variance)
+    print(predicted_mu)
+    # print(predicted_et)
+    # return prediction
+
+
+def get_monthly_returns(returns):
+    returns.reset_index(level=0, inplace=True)
+    returns['date'] = returns['date'].astype(str).str[:7]
+    returns['date'] = returns['date'].str.replace('-', '').astype('int')
+    returns[[col for col in returns.columns if col != 'date']] += 1
+    monthly_returns = returns.groupby('date').prod()
+    monthly_returns[[col for col in monthly_returns.columns if col != 'date']] -= 1
+    return monthly_returns
+
+
+def get_all_tickers(table):
+    sql = f'''SELECT DISTINCT ticker FROM {table};'''
+    stock_columns = ['ticker']
+    selected = execute_sql(sql, stock_columns)
+    return sorted(list(selected['ticker']))
+
+
+def train_arff(arima_fitted, garch_fitted, mlr_fitted, X, y):
+    return
+
+
+if __name__ == '__main__':
+    freq = 'monthly'
+    start_date = '2006-01-01' if freq == 'daily' else '200601'
+    end_date = '2016-12-31' if freq == 'daily' else '201612'
+    factors = get_factors(start=start_date, end=end_date, freq=freq)
+    print(factors)
+
+    start_date = '2006-01-01'
+    end_date = '2016-12-31'
+
+    table = 'americanetfs'
+    tickers = get_all_tickers(table)
+    for tick in tickers:
+        returns = None
+        try:
+            returns = get_returns(tick, table, start=start_date, end=end_date, freq=freq)
+            has_null = returns[['adj_close']].isnull().values.any()
+            if has_null: print(tick, 'NULL')
+        except KeyError:
+            print(tick, 'KEYERROR')
+
+    # merged = pd.merge(factors, returns, left_on='date', right_on='date', how="inner", sort=False)
+    # merged.dropna(inplace=True)
+    # factors = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
+    # merged['adj_close_rf'] = merged['adj_close'] - merged['riskfree'].astype('float')
+    # adj_returns = merged[['adj_close_rf']]
+    # print(get_monthly_returns(adj_returns))
+    # mlr = MLR(factors, adj_returns)
+
+    # factor_columns = ['excess', 'smb', 'hml', 'rmw', 'cma']
+    # for factor in factor_columns:
+    #     data = factors[factor]
+    #     trade_horizon = 12
+    #     train, test = pm.model_selection.train_test_split(data, test_size=trade_horizon)
+    #
+    #     # #############################################################################
+    #     # Fit with some validation (cv) samples
+    #     # arima = pm.auto_arima(train, start_p=1, start_q=1, d=0, max_p=5, max_q=5,
+    #     #                       out_of_sample_size=trade_horizon, suppress_warnings=True,
+    #     #                       stepwise=True, error_action='ignore')
+    #     # arima = pm.ARIMA(order=(2, 0, 2), seasonal_order=(0, 1, 1, 12))
+    #     # arima.fit(train)
+    #     arima = pm.auto_arima(data, start_p=1, start_q=1, start_P=1, start_Q=1, start_D=1, test='adf',
+    #                           max_p=5, max_q=5, max_P=5, max_Q=5, max_D=5, m=12, seasonal=True,
+    #                           d=None, D=1, trace=True,
+    #                           error_action='ignore', suppress_warnings=True, stepwise=True)
+    #
+    #     p, d, q = arima.order
+    #     print(f'arima model: p={p}, d={d}, q={q}')
+    #     print(arima.summary())
+    #
+    #     # Now plot the results and the forecast for the test set
+    #     preds, conf_int = arima.predict(n_periods=test.shape[0],
+    #                                     return_conf_int=True)
+    #
+    #     # Print the error:
+    #     print("Test RMSE: %.3f" % np.sqrt(sklearn.metrics.mean_squared_error(test, preds)))
+    #
+    #     fig, axes = plt.subplots(2, 1, figsize=(12, 8))
+    #     x_axis = np.arange(train.shape[0] + preds.shape[0])
+    #     axes[0].plot(x_axis[:train.shape[0]], train, alpha=0.75)
+    #     axes[0].scatter(x_axis[train.shape[0]:], preds, alpha=0.4, marker='o')
+    #     axes[0].scatter(x_axis[train.shape[0]:], test, alpha=0.4, marker='x')
+    #     axes[0].fill_between(x_axis[-preds.shape[0]:], conf_int[:, 0], conf_int[:, 1],
+    #                          alpha=0.1, color='b')
+    #
+    #     # fill the section where we "held out" samples in our model fit
+    #
+    #     axes[0].set_title("Train samples & forecasted test samples")
+    #
+    #     # Now add the actual samples to the model and create NEW forecasts
+    #     arima.update(test)
+    #     new_preds, new_conf_int = arima.predict(n_periods=trade_horizon, return_conf_int=True)
+    #     new_x_axis = np.arange(data.shape[0] + trade_horizon)
+    #
+    #     axes[1].plot(new_x_axis[:data.shape[0]], data, alpha=0.75)
+    #     axes[1].scatter(new_x_axis[data.shape[0]:], new_preds, alpha=0.4, marker='o')
+    #     axes[1].fill_between(new_x_axis[-new_preds.shape[0]:],
+    #                          new_conf_int[:, 0],
+    #                          new_conf_int[:, 1],
+    #                          alpha=0.1, color='g')
+    #     axes[1].set_title("Added new observed values with new forecasts")
+    #     plt.show()
