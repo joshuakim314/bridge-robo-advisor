@@ -162,6 +162,7 @@ if __name__ == '__main__':
             factor_columns = ['excess', 'smb', 'hml'] if model_name[:3] == 'ff3' else ['excess', 'smb', 'hml', 'rmw', 'cma']
             for month in months:
                 mu_month = get_factor_mu(model_name, model, train_factors, month, factor_columns, ag)
+                print(mu_month)
                 mu_factor[int(month)-1] += [mu_month[0]]
         print(len(mu_factor))
         print(len(mu_factor[0]))

@@ -18,6 +18,11 @@ import numpy as np
 import psycopg2.extensions
 psycopg2.extensions.register_adapter(np.int64, psycopg2._psycopg.AsIs)
 
+import sys
+# insert at 1, 0 is the script path (or '' in REPL)
+sys.path.append('../business_logic')
+import portfolio_opt_front_end
+
 conn = psycopg2.connect(
     host='database-1.csuf8nkuxrw3.us-east-2.rds.amazonaws.com',
     port=5432,
@@ -519,8 +524,33 @@ def display_output(n_clicks, values, ranges, urisk, uret, ucontr, uhoriz, ucard,
         if max < ucontr:
             return None, 'Maximum values resulting in infeasible constraints, please raise them or lower User Portfolio Control.', no_update, no_update
 
-        optimal_portfolio, expected_monthly_returns = get_portfolio_weights(final, account_data)
+        print(final)
+        print(account_data)
+
+        stock_picks = []
+
+        weight_constraints = {}
+        for key in final.keys():
+            stock_picks.append(final[key]['stock'])
+            weight_constraints[final[key]['stock']] = (final[key]['range'][0], final[key]['range'][1])
+
+        control = account_data['Control']/100
+        trade_horizon = account_data['Horizon']
+        cardinality = account_data['Max']
+        target_return = account_data['Return']/100
+        risk_aversion = 10 - account_data['Risk']/10
+        print(weight_constraints)
+
+
+        optimal_portfolio, expected_monthly_returns = portfolio_opt_front_end.port_opt(stock_picks, weight_constraints, control, trade_horizon, cardinality, target_return, risk_aversion)
+
+        print(optimal_portfolio)
+        print(expected_monthly_returns)
+
         bt, fu, fm, fd, trades, old_portfolio, new_portfolio = get_trades(conn, account_data['Email'], optimal_portfolio, expected_monthly_returns)
+
+        print(optimal_portfolio)
+        print(expected_monthly_returns)
 
         #Get Historic and Expected Annualized Returns
         btmin = bt['value'].to_list()[0]

@@ -408,7 +408,7 @@ def get_all_tickers(connection):
     # print("end")
     return ret_dict
 
-def get_portfolio_weights(stock_dict, account_info):
+def get_portfolio_weights(stock_dict, account_info, ):
     optimal_portfolio = {}
 
     numStocks = len(stock_dict.keys())
@@ -655,7 +655,6 @@ def get_trades(connection, email, opt, rets):
 
     #Handle Hypothetical Back Test
     back_test_min_date = max_date - relativedelta(years=5)
-    future_ret_date = max_date + relativedelta(years=1)
 
     sql = f'''
                     SELECT date, ticker, adj_close FROM americanetfs WHERE (date BETWEEN '{back_test_min_date}' AND '{max_date}') AND (ticker IN {string_tickers})
@@ -708,16 +707,23 @@ def get_trades(connection, email, opt, rets):
     dfpx['value'] = dfpx['value'] + new_portfolio_cash_component
 
     df_future_up = dfpx.copy()[dfpx['date'] == max_date].reset_index(drop=True)
-    df_future_up.loc[-1] = [future_ret_date, df_future_up['value'][0]*rets['ub']]
-    df_future_up = df_future_up.reset_index(drop=True)
-
     df_future_mid = dfpx.copy()[dfpx['date'] == max_date].reset_index(drop=True)
-    df_future_mid.loc[-1] = [future_ret_date, df_future_mid['value'][0] * rets['exp']]
-    df_future_mid = df_future_mid.reset_index(drop=True)
-
     df_future_down = dfpx.copy()[dfpx['date'] == max_date].reset_index(drop=True)
-    df_future_down.loc[-1] = [future_ret_date, df_future_down['value'][0] * rets['lb']]
-    df_future_down = df_future_down.reset_index(drop=True)
+
+
+    for key in rets.keys():
+        future_ret_date = max_date + relativedelta(months=key)
+
+        df_future_up.loc[-1] = [future_ret_date, df_future_up['value'][0]*rets[key]]
+        df_future_up = df_future_up.reset_index(drop=True)
+
+        df_future_mid.loc[-1] = [future_ret_date, df_future_mid['value'][0] * rets[key]]
+        df_future_mid = df_future_mid.reset_index(drop=True)
+
+        df_future_down.loc[-1] = [future_ret_date, df_future_down['value'][0] * rets[key]]
+        df_future_down = df_future_down.reset_index(drop=True)
+
+    print(df_future_up)
 
     return dfpx, df_future_up, df_future_mid, df_future_down, tradeDf[['ticker', 'delta']].to_dict('records'), old_portfolio_values.round(2), new_portfolio_values.round(2)
 

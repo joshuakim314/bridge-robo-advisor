@@ -30,10 +30,9 @@ cursor = conn.cursor()
 pd.options.mode.chained_assignment = None  # default='warn'
 
 if __name__ == '__main__':
-    table = 'canadianetfs'
+    table = 'americanetfs'
     tickers = param_estimator.get_all_tickers(table)
-    start = "2016-01-01"
-    end = "2020-12-31"
+    start, end = '2016-12-01', '2021-11-30'
     returns_tick = []
 
     for tick in tickers:
@@ -46,7 +45,6 @@ if __name__ == '__main__':
     returns = pd.concat(returns_tick, axis=1).T.dropna()
     print(returns.shape)
 
-    n_comp = 10
     pca = PCA(n_components='mle')
     principal_comp = pca.fit_transform(returns)
     print(principal_comp.shape)

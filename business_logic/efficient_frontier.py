@@ -79,9 +79,11 @@ class EfficientFrontier(mpo.BaseMPO):
         :raises TypeError: if ``cov_matrix`` is not a dataframe or array
         """
         # Inputs
-        self.cov_matrices = [EfficientFrontier._validate_cov_matrix(cov_matrix) for cov_matrix in cov_matrices]
-        self.expected_returns = [EfficientFrontier._validate_expected_returns(expected_return)
-                                 for expected_return in expected_returns]
+        # self.cov_matrices = [EfficientFrontier._validate_cov_matrix(cov_matrix) for cov_matrix in cov_matrices]
+        self.cov_matrices = cov_matrices
+        # self.expected_returns = [EfficientFrontier._validate_expected_returns(expected_return)
+        #                          for expected_return in expected_returns]
+        self.expected_returns = expected_returns
         self._max_return_value = None
         self._market_neutral = None
 
@@ -100,10 +102,10 @@ class EfficientFrontier(mpo.BaseMPO):
         else:  # use integer labels
             tickers = list(range(num_assets))
 
-        if expected_returns is not None and cov_matrices is not None:
-            for cov_matrix in cov_matrices:
-                if cov_matrix.shape != (num_assets, num_assets):
-                    raise ValueError("Covariance matrix does not match expected returns")
+        # if expected_returns is not None and cov_matrices is not None:
+        #     for cov_matrix in cov_matrices:
+        #         if cov_matrix.shape != (num_assets, num_assets):
+        #             raise ValueError("Covariance matrix does not match expected returns")
 
         super().__init__(
             len(tickers),
@@ -143,8 +145,8 @@ class EfficientFrontier(mpo.BaseMPO):
         """
         Helper method to validate daily returns (needed for some efficient frontiers)
         """
-        if not isinstance(returns, (pd.DataFrame, np.ndarray)):
-            raise TypeError("returns should be a pd.Dataframe or np.ndarray")
+        # if not isinstance(returns, (pd.DataFrame, np.ndarray)):
+        #     raise TypeError("returns should be a pd.Dataframe or np.ndarray")
 
         returns_df = pd.DataFrame(returns)
         if returns_df.isnull().values.any():
