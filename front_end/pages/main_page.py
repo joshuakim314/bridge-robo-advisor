@@ -14,6 +14,7 @@ main_dash = html.Div(
                     [
                         dbc.Row([
                             html.H3(id='portfolio-highlight', style={'textAlign': 'center'}),
+                            html.H3(id='port-ret-message', style={'textAlign': 'center'}),
                             html.Div(
                                 [
                                     dcc.Graph(
@@ -30,19 +31,16 @@ main_dash = html.Div(
                     ),
                 dbc.Col(
                     [
-                        html.H3('Past Deposits'),
-                        dash_table.DataTable(
-                            id='deposits-table-brief',
-                            columns=[{'name': 'Date', 'id': 'Date Time'}, {'name': 'Amount', 'id': 'Amount'}],
-                            css=[{'selector': '.row', 'rule': 'margin: 0'}],
-                            style_table={'overflowY': 'auto', 'overflowX': 'False', 'height': 500},
-                        ),
-                        html.Div([dbc.Button("Deposit", color="primary", href='/deposit')], className="d-grid gap-2")
+                        html.H3('Current Portfolio Composition'),
+                        html.Div(
+                            id='port-comp-pie'
+                        )
                     ],
                     lg=3,
-                    align='top'
+                    align='top',
+                    style={'textAlign': 'center'}
                     )
-            ]
+            ], style={'marginTop': '1in'}
         ),
     ]
 )

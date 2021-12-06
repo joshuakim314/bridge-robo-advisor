@@ -10,7 +10,7 @@ from dash.dependencies import Input, Output
 import time
 import pandas as pd
 
-from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits, get_past_deposits_brief, get_portfolio_value_by_date, get_all_tickers
+from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits, get_past_deposits_brief, get_portfolio_value_by_date, get_all_tickers, get_portfolio_weights, get_trades, transact_stock
 
 from app import app
 
@@ -136,7 +136,9 @@ def new_user_data(n_clicks, fn, ln, em, cem, pw, cpw):
      Output(component_id='invalid', component_property='children'),
      Output(component_id='url', component_property='pathname'),
      Output(component_id='portfolio-graph-data', component_property='data'),
-     Output(component_id='portfolio-value', component_property='data')],
+     Output(component_id='portfolio-value', component_property='data'),
+     Output(component_id='portfolio-returns', component_property='data'),
+     Output(component_id='port-comp', component_property='data')],
     Input(component_id='continue-2', component_property='n_clicks'),
     [State(component_id='user-risk', component_property='value'),
      State(component_id='user-control', component_property='value'),
@@ -150,11 +152,11 @@ def update_user_risk_data(n_clicks, ur, uc, uh, uret, acc_info):
             #print(acc_info['Email'], acc_info['Password'], ur, uc)
             update_risk_control(conn, acc_info['Email'], acc_info['Password'], ur, uc, uh, uret, 35)
             user_data = pull_user_data(conn, acc_info['Email'], acc_info['Password'])
-            portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, acc_info['Email'])
+            portfolio_graph_data, portfolio_value, port_returns, port_comp = get_portfolio_value_by_date(conn, acc_info['Email'])
             #print(user_data)
-            return user_data, no_update, '/main', portfolio_graph_data, portfolio_value
+            return user_data, no_update, '/main', portfolio_graph_data, portfolio_value, port_returns, port_comp
         else:
-            return no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update, no_update, no_update
     except:
         raise dash.exceptions.PreventUpdate
 
@@ -168,10 +170,13 @@ def update_user_risk_data(n_clicks, ur, uc, uh, uret, acc_info):
 
      Output(component_id='portfolio-graph-data', component_property='data'),
      Output(component_id='portfolio-value', component_property='data'),
+     Output(component_id='portfolio-returns', component_property='data'),
      Output(component_id='all-stock-list', component_property='data'),
 
      Output(component_id='invalid', component_property='children'),
-     Output(component_id='url', component_property='pathname')],
+     Output(component_id='url', component_property='pathname'),
+     Output(component_id='port-comp', component_property='data')],
+
     Input(component_id='login', component_property='n_clicks'),
     [State(component_id='login-email', component_property='value'),
      State(component_id='login-password', component_property='value')],
@@ -187,13 +192,13 @@ def get_user_data(n_clicks, email, password):
                 portfolio_data = get_portfolio_data(conn, email)
                 past_deposits = get_past_deposits(conn, email)
                 past_deposits_brief = get_past_deposits_brief(conn, email)
-                portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, email)
+                portfolio_graph_data, portfolio_value, port_returns, port_comp = get_portfolio_value_by_date(conn, email)
                 all_stocks = get_all_tickers(conn)
                 #print('Got Past Deposits')
-                return user_data, portfolio_data, past_deposits, past_deposits_brief, portfolio_graph_data, portfolio_value, all_stocks, no_update, '/main'
+                return user_data, portfolio_data, past_deposits, past_deposits_brief, portfolio_graph_data, portfolio_value, port_returns, all_stocks, no_update, '/main', port_comp
             except:
                 #print('Failed Retreiving Password')
-                return no_update, no_update, no_update, no_update, no_update, no_update, no_update, 'Username or Password does not match an account on file', no_update
+                return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, 'Username or Password does not match an account on file', no_update, no_update
     except:
         raise dash.exceptions.PreventUpdate
 
@@ -296,7 +301,10 @@ def toggle_navbar_collapse(account_data, portfolio_data):
      Output('past-deposits', 'data'),
      Output('past-deposits-brief', 'data'),
      Output(component_id='portfolio-graph-data', component_property='data'),
-     Output(component_id='portfolio-value', component_property='data')],
+     Output(component_id='portfolio-value', component_property='data'),
+     Output(component_id='portfolio-returns', component_property='data'),
+
+     Output(component_id='port-comp', component_property='data')],
     Input('confirm-deposit', 'n_clicks'),
     [State('deposit-ammount', 'value'),
      State('account-info', 'data')]
@@ -308,11 +316,11 @@ def handle_deposit(n_clicks, deposit_amount, account_info):
             portfolio_data = get_portfolio_data(conn, account_info['Email'])
             deposit_data = get_past_deposits(conn, account_info['Email'])
             deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
-            portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, account_info['Email'])
-            return portfolio_data, deposit_data, deposit_data_brief, portfolio_graph_data, portfolio_value
+            portfolio_graph_data, portfolio_value, port_returns, port_comp = get_portfolio_value_by_date(conn, account_info['Email'])
+            return portfolio_data, deposit_data, deposit_data_brief, portfolio_graph_data, portfolio_value, port_returns, port_comp
         deposit_data = get_past_deposits(conn, account_info['Email'])
         deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
-        return no_update, deposit_data, deposit_data_brief, no_update, no_update
+        return no_update, deposit_data, deposit_data_brief, no_update, no_update, no_update, no_update
     except:
         raise PreventUpdate
 
@@ -322,7 +330,10 @@ def handle_deposit(n_clicks, deposit_amount, account_info):
      Output('past-deposits', 'data'),
      Output('past-deposits-brief', 'data'),
      Output(component_id='portfolio-graph-data', component_property='data'),
-     Output(component_id='portfolio-value', component_property='data')],
+     Output(component_id='portfolio-value', component_property='data'),
+     Output(component_id='portfolio-returns', component_property='data'),
+
+     Output(component_id='port-comp', component_property='data')],
     Input('confirm-withdraw', 'n_clicks'),
     [State('withdraw-ammount', 'value'),
      State('account-info', 'data')]
@@ -334,11 +345,11 @@ def handle_withdraw(n_clicks, deposit_amount, account_info):
             portfolio_data = get_portfolio_data(conn, account_info['Email'])
             deposit_data = get_past_deposits(conn, account_info['Email'])
             deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
-            portfolio_graph_data, portfolio_value = get_portfolio_value_by_date(conn, account_info['Email'])
-            return portfolio_data, deposit_data, deposit_data_brief, portfolio_graph_data, portfolio_value
+            portfolio_graph_data, portfolio_value, port_returns, port_comp = get_portfolio_value_by_date(conn, account_info['Email'])
+            return portfolio_data, deposit_data, deposit_data_brief, portfolio_graph_data, portfolio_value, port_returns, port_comp
         deposit_data = get_past_deposits(conn, account_info['Email'])
         deposit_data_brief = get_past_deposits_brief(conn, account_info['Email'])
-        return no_update, deposit_data, deposit_data_brief, no_update, no_update
+        return no_update, deposit_data, deposit_data_brief, no_update, no_update, no_update, no_update
     except:
         raise PreventUpdate
 
@@ -462,15 +473,21 @@ def display_dropdowns(n_clicks, children, stock_list):
 #Confirm Stock Pick
 @app.callback(
     [Output('prefs-messy-succ', 'children'),
-     Output('prefs-mess-warning', 'children')],
+     Output('prefs-mess-warning', 'children'),
+     Output('show-hype-graph', 'children'),
+     Output('trades', 'data')],
     Input('confirm-preferences', 'n_clicks'),
     [State({'type': 'stock-pick', 'index': ALL}, 'value'),
      State({'type': 'stock-min-max', 'index': ALL}, 'value'),
-     State('user-control-set', 'value')
-     ]
+     State('user-risk-set', 'value'),
+     State('user-return-set', 'value'),
+     State('user-control-set', 'value'),
+     State('user-horizon-set', 'value'),
+     State('user-card-set', 'value'),
+     State('account-info', 'data')]
 )
-def display_output(n_clicks, values, ranges, uc):
-    try:
+def display_output(n_clicks, values, ranges, urisk, uret, ucontr, uhoriz, ucard, account_data):
+    #try:
         stocks = {}
         for (i, stk) in enumerate(values):
             #print(f'{i}: {stk}')
@@ -488,21 +505,161 @@ def display_output(n_clicks, values, ranges, uc):
         for key in final.keys():
             #print(final[key]['stock'])
             if final[key]['stock'] in seen_stocks:
-                return None, f'Duplicate stocks {final[key]["stock"]}, please change one or reload page to reset'
+                return None, f'Duplicate stocks {final[key]["stock"]}, please change one or reload page to reset', no_update, no_update
             seen_stocks.add(final[key]["stock"])
             min += final[key]['range'][0]
             max += final[key]['range'][1]
 
-        if len(seen_stocks) == 0:
-            return None, 'Please select at least one stock.'
+        if len(seen_stocks) == 0 or all(x is None for x in list(seen_stocks)):
+            return None, 'Please select at least one stock.', no_update, no_update
 
         if min > 100:
-            return None, 'Minimum values resulting in infeasible constraints, please lower them.'
+            return None, 'Minimum values resulting in infeasible constraints, please lower them.', no_update, no_update
 
-        if max < uc:
-            return None, 'Maximum values resulting in infeasible constraints, please raise them or lower User Portfolio Control.'
+        if max < ucontr:
+            return None, 'Maximum values resulting in infeasible constraints, please raise them or lower User Portfolio Control.', no_update, no_update
 
-        return 'Stock Pick Success', None
+        optimal_portfolio, expected_monthly_returns = get_portfolio_weights(final, account_data)
+        bt, fu, fm, fd, trades, old_portfolio, new_portfolio = get_trades(conn, account_data['Email'], optimal_portfolio, expected_monthly_returns)
+
+        #Get Historic and Expected Annualized Returns
+        btmin = bt['value'].to_list()[0]
+        btmax = bt['value'].to_list()[-1]
+
+        bt_annual_returns = (1+((btmax-btmin)/btmin))**(0.2) - 1
+
+        fmmin = fm['value'].to_list()[0]
+        fmmax = fm['value'].to_list()[-1]
+
+        fm_annual_returns = ((fmmax-fmmin)/fmmin)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=bt['date'], y=bt['value'], line=dict(color="#205445"), name='Historic Value'))
+        fig.add_trace(go.Scatter(x=fu['date'], y=fu['value'], line=dict(color="#9fcfc1"), name='Expected Value Upper Bound'))
+        fig.add_trace(go.Scatter(x=fm['date'], y=fm['value'], line=dict(color="#66A593"), name='Expected Value'))
+        fig.add_trace(go.Scatter(x=fd['date'], y=fd['value'], line=dict(color="#9fcfc1"), name='Expected Value Lower Bound'))
+
+        fig.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Theoretical Portfolio Value",
+            template="plotly_white",
+            margin={'t': 20}
+        )
+        fig.update_yaxes(tickprefix="$")
+
+        print(optimal_portfolio)
+
+        pie_old = px.pie(values=old_portfolio['value'], names=old_portfolio['ticker'], color_discrete_sequence=px.colors.sequential.Greens)
+        pie_old.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        pie_old.update(layout_showlegend=False)
+
+        pie_new = px.pie(values=new_portfolio['value'], names=new_portfolio['ticker'], color_discrete_sequence=px.colors.sequential.Greens)
+        pie_new.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        pie_new.update(layout_showlegend=False)
+
+        retDiv = html.Div([
+            html.H3(f'Theoretical portfolio has historic annualized returns of {bt_annual_returns:.2%} and expected annualized returns of {fm_annual_returns:.2%}', style={'marginLeft': '1in', 'marginRight': '1in', 'textAlign': 'left'}),
+            dcc.Graph(
+                figure=fig,
+            ),
+            dbc.Row([
+                dbc.Col([
+                    html.H5('Current Portfolio Composition'),
+                    dcc.Graph(
+                        figure=pie_old,
+                    ),
+                ]),
+                html.Img(src='/assets/arrow.png', style={'height': '0.5in', 'width': '1in', 'align': 'center', 'marginTop': '2in'}),
+                dbc.Col([
+                    html.H5('New Portfolio Composition'),
+                    dcc.Graph(
+                        figure=pie_new,
+                    ),
+                ])
+            ]),
+            dbc.Button("Make Trades for New Portfolio", id="confirm-trades", n_clicks=0),
+            html.P(id='trade-messy-succ', style={'color': 'green', 'marginTop': '0.2in'}),
+            html.P(id='trade-mess-warning', style={'color': 'red', 'marginTop': '0.2in'}),
+
+        ])
+
+        return 'Stock Pick Success', None, retDiv, trades
+
+    #except:
+        #raise PreventUpdate
+
+@app.callback(
+    [Output('trade-messy-succ', 'children'),
+     Output('trade-mess-warning', 'children'),
+     Output('trades', 'data'),
+     Output(component_id='portfolio-info', component_property='data'),
+     Output(component_id='past-deposits', component_property='data'),
+     Output(component_id='past-deposits-brief', component_property='data'),
+     Output(component_id='portfolio-graph-data', component_property='data'),
+     Output(component_id='portfolio-value', component_property='data'),
+     Output(component_id='portfolio-returns', component_property='data'),
+
+     Output(component_id='port-comp', component_property='data')],
+
+    Input('confirm-trades', 'n_clicks'),
+    [State('trades', 'data'),
+     State('account-info', 'data')]
+
+)
+def submit_trades(n_clicks, trades, ac_info):
+    try:
+        if n_clicks > 0:
+            print(trades)
+            if trades != None:
+                for trade in trades:
+                    #time.sleep(1)
+                    if trade['delta'] != 0:
+                        transact_stock(conn, ac_info['Email'], trade['ticker'], trade['delta'])
+                portfolio_data = get_portfolio_data(conn, ac_info['Email'])
+                past_deposits = get_past_deposits(conn, ac_info['Email'])
+                past_deposits_brief = get_past_deposits_brief(conn, ac_info['Email'])
+                portfolio_graph_data, portfolio_value, port_returns, port_comp = get_portfolio_value_by_date(conn, ac_info['Email'])
+
+                return 'Trades Submitted', no_update, None, portfolio_data, past_deposits, past_deposits_brief, portfolio_graph_data, portfolio_value, port_returns, port_comp
+            else:
+                return None, 'Trades Already Submitted', no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update
+        else:
+            raise PreventUpdate
     except:
         raise PreventUpdate
 
+@app.callback(
+    Output('port-comp-pie', 'children'),
+    Input('portfolio-highlight', 'children'),
+    State('port-comp', 'data')
+)
+def display_port_comp_pie(chil, data):
+    #try:
+        pie_old = px.pie(values=list(data.values()), names=list(data.keys()), color_discrete_sequence=px.colors.sequential.Greens)
+        pie_old.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        pie_old.update(layout_showlegend=False)
+
+
+        pie_old.update_layout(
+            margin={'t': 4, 'l': 4, 'r': 4, 'b': 4}
+        )
+
+        tempDiv = dcc.Graph(
+            figure=pie_old,
+        )
+        return tempDiv
+    #except:
+        raise PreventUpdate
+
+#Get Portfolio Returns to Front Page
+@app.callback(
+    Output('port-ret-message', 'children'),
+    Input('portfolio-highlight', 'children'),
+    State('portfolio-returns', 'data')
+)
+
+def ret_port_rets(chil, data):
+    if data['port_returns'] != 0:
+        return f"Your portfolio's anualized returns are {data['port_returns']:.1%}"
+    else:
+        return None

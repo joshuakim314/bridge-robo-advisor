@@ -65,6 +65,11 @@ max_etfs = html.Div(
 
 prefs_page = html.Div([
     navbar,
+    html.Div(
+        id='show-hype-graph',
+        style={'marginTop': '0.2in', 'marginLeft': '0.5in', 'marginRight': '0.5in'}
+
+    ),
     dbc.Row([
         dbc.Col(
             [

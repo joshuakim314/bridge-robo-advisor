@@ -6,7 +6,6 @@ logo = '/assets/BridgeLogo.svg'
 buttons = html.Div([
     dbc.NavItem(dbc.NavLink("Portfolio", href='/main')),
     dbc.NavItem(dbc.NavLink("Deposits", href='/deposit')),
-    dbc.NavItem(dbc.NavLink("Breakdown", href='/nyi')),
     dbc.NavItem(dbc.NavLink("Preferences", href='/prefs')),
     dbc.Button("Log Out", outline=False, color="primary", href='/', id='log-out', n_clicks=0),
 ],
