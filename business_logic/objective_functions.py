@@ -169,7 +169,8 @@ def transaction_cost(w, w_prev, k=0.001):
     :return: value of the objective function OR objective function expression
     :rtype: float OR cp.Expression
     """
-    return _objective_value(w, k * cp.norm(w - w_prev, 1))
+    w_concat = [w_prev] + w
+    return _objective_value(w, k * sum([cp.norm(w_concat[j+1] - w_concat[j], 1) for j in range(len(w))]))
 
 
 '''

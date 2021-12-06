@@ -16,6 +16,7 @@ Additionally, we provide utility functions to convert from returns to prices and
 """
 
 import warnings
+import csv
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,6 +27,18 @@ from arch.__future__ import reindexing
 
 import psycopg2.extensions
 psycopg2.extensions.register_adapter(np.int64, psycopg2._psycopg.AsIs)
+
+conn = psycopg2.connect(
+        host='database-1.csuf8nkuxrw3.us-east-2.rds.amazonaws.com',
+        port=5432,
+        user='postgres',
+        password='capstone',
+        database='can2_etfs'
+    )
+conn.autocommit = True
+cursor = conn.cursor()
+
+pd.options.mode.chained_assignment = None  # default='warn'
 
 
 def returns_from_prices(prices, log_returns=False):
@@ -802,24 +815,11 @@ class CovarianceShrinkage:
 
 
 def execute_sql(sql, columns=None, suppress=True):
-    conn = psycopg2.connect(
-        host='database-1.csuf8nkuxrw3.us-east-2.rds.amazonaws.com',
-        port=5432,
-        user='postgres',
-        password='capstone',
-        database='can2_etfs'
-    )
-
-    if not suppress: print('connected to postgres db')
-
-    conn.autocommit = True
-    cursor = conn.cursor()
-    if not suppress: print(f'executing the command: {sql}')
+    if not suppress:
+        print(f'executing the command: {sql}')
     cursor.execute(sql)
     selected = cursor.fetchall()
     selected = convert_db_fetch_to_df(selected, columns)
-    cursor.close()
-    if not suppress: print("postgres db connection closed")
     return selected
 
 
@@ -861,41 +861,48 @@ def MLR(X_train, y_train):
     mlr = sklearn.linear_model.LinearRegression()
     mlr.fit(X_train, y_train)
     r_sq = mlr.score(X_train, y_train)
-    print(r_sq)
-    print('intercept:', mlr.intercept_)
-    print('slope:', mlr.coef_)
-    return mlr
+    # print(r_sq)
+    # print('intercept:', mlr.intercept_)
+    # print('slope:', mlr.coef_)
+    return mlr, r_sq
 
 
-def factor_forecast(factors, trade_horizon, r=2, s=2):
-    # fit ARIMA on returns
-    arima_model_fitted = pm.auto_arima(factors, start_p=1, start_q=1, d=0, max_p=5, max_q=5,
-                                             out_of_sample_size=trade_horizon, suppress_warnings=True,
-                                             stepwise=True, error_action='ignore')
-    p, d, q = arima_model_fitted.order
-    print(f'arima model: p={p}, d={d}, q={q}')
-    print(arima_model_fitted.summary())
+def EN(X_train, y_train, alpha, l1_ratio):
+    regr = sklearn.linear_model.ElasticNet(alpha=alpha, l1_ratio=l1_ratio, random_state=0)
+    regr.fit(X_train, y_train)
+    r_sq = regr.score(X_train, y_train)
+    return regr, r_sq
 
-    arima_residuals = arima_model_fitted.arima_res_.resid
-    # fit a GARCH(r,s) model on the residuals of the ARIMA model
-    garch = arch.arch_model(arima_residuals, p=r, q=s)
-    garch_fitted = garch.fit()
-    print(garch_fitted.summary())
 
-    # Use ARIMA to predict mu
-    predicted_mu = arima_model_fitted.predict(n_periods=trade_horizon)[0]
-    # Use GARCH to predict the residual
-    garch_forecast = garch_fitted.forecast(horizon=trade_horizon)
-    # predicted_et = garch_forecast.mean['h.1'].iloc[-1]
-    # Combine both models' output: yt = mu + et
-    # prediction = predicted_mu + predicted_et
-    print(arima_model_fitted.predict(n_periods=trade_horizon))
-    print(garch_forecast.mean)
-    print(garch_forecast.residual_variance)
-    print(garch_forecast.variance)
-    print(predicted_mu)
-    # print(predicted_et)
-    # return prediction
+# def factor_forecast(factors, trade_horizon, r=2, s=2):
+#     # fit ARIMA on returns
+#     arima_model_fitted = pm.auto_arima(factors, start_p=1, start_q=1, d=0, max_p=5, max_q=5,
+#                                              out_of_sample_size=trade_horizon, suppress_warnings=True,
+#                                              stepwise=True, error_action='ignore')
+#     p, d, q = arima_model_fitted.order
+#     print(f'arima model: p={p}, d={d}, q={q}')
+#     print(arima_model_fitted.summary())
+#
+#     arima_residuals = arima_model_fitted.arima_res_.resid
+#     # fit a GARCH(r,s) model on the residuals of the ARIMA model
+#     garch = arch.arch_model(arima_residuals, p=r, q=s)
+#     garch_fitted = garch.fit()
+#     print(garch_fitted.summary())
+#
+#     # Use ARIMA to predict mu
+#     predicted_mu = arima_model_fitted.predict(n_periods=trade_horizon)[0]
+#     # Use GARCH to predict the residual
+#     garch_forecast = garch_fitted.forecast(horizon=trade_horizon)
+#     # predicted_et = garch_forecast.mean['h.1'].iloc[-1]
+#     # Combine both models' output: yt = mu + et
+#     # prediction = predicted_mu + predicted_et
+#     print(arima_model_fitted.predict(n_periods=trade_horizon))
+#     print(garch_forecast.mean)
+#     print(garch_forecast.residual_variance)
+#     print(garch_forecast.variance)
+#     print(predicted_mu)
+#     # print(predicted_et)
+#     # return prediction
 
 
 def get_monthly_returns(returns):
@@ -915,38 +922,64 @@ def get_all_tickers(table):
     return sorted(list(selected['ticker']))
 
 
-def train_arff(arima_fitted, garch_fitted, mlr_fitted, X, y):
-    return
+def arima_garch(factors, trade_horizon, columns):
+    fitted_models = {}
+    for factor in columns:
+        data = factors[factor]
+        arima = pm.auto_arima(data, start_p=1, start_q=1, start_P=1, start_Q=1, start_D=1, test='adf',
+                              max_p=5, max_q=5, max_P=5, max_Q=5, max_D=5, m=12, seasonal=True,
+                              d=None, D=1, trace=False,
+                              error_action='ignore', suppress_warnings=True, stepwise=True)
+        # print(arima.summary())
+        arima_preds, arima_conf_int = arima.predict(n_periods=trade_horizon, return_conf_int=True)
+
+        arima_residuals = arima.arima_res_.resid
+        # fit a GARCH(r,s) model on the residuals of the ARIMA model
+        garch = arch.arch_model(arima_residuals, p=2, q=2).fit()
+        # print(garch.summary())
+        garch_preds = garch.forecast(horizon=trade_horizon)
+        fitted_models[factor] = (arima, arima_preds, garch, garch_preds)
+    return fitted_models
 
 
 if __name__ == '__main__':
     freq = 'monthly'
     start_date = '2006-01-01' if freq == 'daily' else '200601'
-    end_date = '2016-12-31' if freq == 'daily' else '201612'
+    end_date = '2015-12-31' if freq == 'daily' else '201512'
     factors = get_factors(start=start_date, end=end_date, freq=freq)
     print(factors)
 
     start_date = '2006-01-01'
-    end_date = '2016-12-31'
+    end_date = '2015-12-31'
 
-    table = 'americanetfs'
-    tickers = get_all_tickers(table)
-    for tick in tickers:
-        returns = None
-        try:
-            returns = get_returns(tick, table, start=start_date, end=end_date, freq=freq)
-            has_null = returns[['adj_close']].isnull().values.any()
-            if has_null: print(tick, 'NULL')
-        except KeyError:
-            print(tick, 'KEYERROR')
+    tables = ['canadianetfs', 'americanetfs']
+    header = ['ticker', 'alpha', 'excess_beta', 'smb_beta', 'hml_beta', 'rmw_beta', 'cma_beta', 'size', 'r_sq']
+    for table in tables:
+        with open(f'factor_loadings_{table}.csv', 'w', encoding='UTF8') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            tickers = get_all_tickers(table)
+            for tick in tickers:
+                returns = None
+                try:
+                    returns = get_returns(tick, table, start=start_date, end=end_date, freq=freq)
+                    has_null = returns[['adj_close']].isnull().values.any()
+                    if has_null: print(tick, 'NULL')
+                    else:
+                        merged = pd.merge(factors, returns, left_on='date', right_on='date', how="inner", sort=False)
+                        merged.dropna(inplace=True)
+                        factors_only = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
+                        merged['adj_close_rf'] = merged['adj_close'] - merged['riskfree'].astype('float')
+                        adj_returns = merged[['adj_close_rf']]
+                        adj_returns = get_monthly_returns(adj_returns)
+                        mlr, r_sq = MLR(factors_only, adj_returns['adj_close_rf'])
+                        wdata = [tick, mlr.intercept_] + mlr.coef_.tolist() + [adj_returns.shape[0], r_sq]
+                        writer.writerow(wdata)
+                        print(wdata)
+                except KeyError:
+                    print(tick, 'KEYERROR')
 
-    # merged = pd.merge(factors, returns, left_on='date', right_on='date', how="inner", sort=False)
-    # merged.dropna(inplace=True)
-    # factors = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
-    # merged['adj_close_rf'] = merged['adj_close'] - merged['riskfree'].astype('float')
-    # adj_returns = merged[['adj_close_rf']]
-    # print(get_monthly_returns(adj_returns))
-    # mlr = MLR(factors, adj_returns)
+    cursor.close()
 
     # factor_columns = ['excess', 'smb', 'hml', 'rmw', 'cma']
     # for factor in factor_columns:

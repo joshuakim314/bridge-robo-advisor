@@ -467,8 +467,44 @@ class EfficientFrontier(mpo.BaseMPO):
         return self._solve_cvxpy_opt_problem()
 
     def param_uncertainty(self, num_observation=252):
-        unc = [(np.diag(np.diag(cov))/num_observation) ** 0.5 for cov in self.cov_matrices]
+        unc = [(np.diag(np.diag(cov)) / num_observation) ** 0.5 for cov in self.cov_matrices]
         return unc
+
+    def min_cvar(self, target_return, scenarios, alpha):
+        num_scenarios = len(scenarios)
+        gamma = [cp.Variable(self.n_assets) for _ in range(self.trade_horizon)]
+        z = [[cp.Variable(1) for _ in range(num_scenarios)] for __ in range(self.trade_horizon)]
+        self._objective = objective_functions._objective_value(
+            self._w, sum([gamma[i] + (1/((1-alpha)*num_scenarios)) * sum([z[j][i] for j in range(num_scenarios)])
+                          for i in range(self.trade_horizon)]
+                         )
+        )
+        for obj in self._additional_objectives:
+            self._objective += obj
+        target_return_par = cp.Parameter(name="target_return", value=target_return)
+        self.add_constraint(
+            lambda w: cp.sum(
+                [w[j] @ self.expected_returns[j] for j in range(self.trade_horizon)]
+            ) >= self.trade_horizon * target_return_par, broadcast=False, block=True
+        )
+        self._constraints += [(cp.sum(z[i][j]) >= 0) for i in range(num_scenarios) for j in range(self.trade_horizon)]
+        self._constraints += [(z[i][j] >= -1 * (self._w[j] @ scenarios[i][j]) - gamma[j])
+                              for i in range(num_scenarios) for j in range(self.trade_horizon)]
+        self._make_weight_sum_constraint()
+        return self._solve_cvxpy_opt_problem()
+
+    def risk_parity(self):
+        self._objective = objective_functions._objective_value(
+            self._w, sum([(0.5*cp.quad_form(self._w[i], self.cov_matrices[i]) - cp.sum(cp.log(self._w[i]))) for i in range(self.trade_horizon)])
+        )
+        for obj in self._additional_objectives:
+            self._objective += obj
+        self._constraints = []
+        self.add_constraint(lambda w: w >= 0, broadcast=True)
+        self._solve_cvxpy_opt_problem()
+        weights = self._w[0].value.round(16) + 0.0  # +0.0 removes signed zero
+        self.weights = weights / sum(weights)
+        return self._make_output_weights()
 
     def portfolio_performance(self, verbose=False, risk_free_rate=0.02):
         """
