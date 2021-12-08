@@ -75,6 +75,9 @@ def get_scenarios(model_name, model, asset_list, factor_columns, ag, res, num_s)
 
 if __name__ == '__main__':
     stock_picks = ['DIS', 'IBM', 'JPM', 'KO', 'WMT']
+    weights_dict = collections.OrderedDict()
+    returns_dict = collections.OrderedDict()
+    assets_dict = collections.OrderedDict()
     val_periods = [(f'{str(year)}-01-01', f'{str(year+4)}-12-31', f'{str(year+5)}-01-01', f'{str(year+5)}-12-31')
                    for year in range(2001, 2011)]
     for val in val_periods:
@@ -130,6 +133,9 @@ if __name__ == '__main__':
         asset_universe = stock_picks + selected_etfs
         train_returns = pd.concat([train_stock_returns, train_etf_returns], axis=1)
         test_returns = pd.concat([test_stock_returns, test_etf_returns], axis=1)
+
+        assets_dict[test_start] = asset_universe
+        returns_dict[test_start] = test_returns
 
         # historical average param. estimation
         mu, cov = historical_avg(train_returns, 12*5, 12)
@@ -211,7 +217,7 @@ if __name__ == '__main__':
                     ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
                 ef.robust_efficient_frontier(target_return=market_return, conf=conf)
                 weights = ef.clean_weights()
-                print(weights)
+                weights_dict[(test_start, model_name, conf)] = weights
 
             # risk parity
             ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
@@ -230,7 +236,7 @@ if __name__ == '__main__':
                 ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
             ef.risk_parity()
             weights = ef.clean_weights()
-            print(weights)
+            weights_dict[(test_start, model_name, None)] = weights
 
             # max sharpe ratio
             ef = efficient_frontier.EfficientFrontier([mu_factor[model_name][0] for _ in range(2)], [cov_factor[model_name][0] for _ in range(2)], trade_horizon=2)
@@ -249,7 +255,7 @@ if __name__ == '__main__':
                 ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
             ef.max_sharpe()
             weights = ef.clean_weights()
-            print(weights)
+            weights_dict[(test_start, model_name, None)] = weights
 
             # cvar opt.
             for alpha in [0.90, 0.95, 0.99]:
@@ -269,6 +275,6 @@ if __name__ == '__main__':
                     ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
                 ef.min_cvar(target_return=market_return, scenarios=scenarios_factor[model_name], alpha=alpha)
                 weights = ef.clean_weights()
-                print(weights)
+                weights_dict[(test_start, model_name, alpha)] = weights
 
     cursor.close()
