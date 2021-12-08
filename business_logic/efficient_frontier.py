@@ -280,7 +280,7 @@ class EfficientFrontier(mpo.BaseMPO):
         self.add_constraint(lambda w: cp.sum(w) == k)
         for i in range(self.trade_horizon):
             self.add_constraint(
-                lambda w: w @ (self.expected_returns[i] - risk_free_rate) == 1, broadcast=False, var_list=[i]
+                lambda w: w @ (self.expected_returns[i]) == 1, broadcast=False, var_list=[i]
             )
 
         self._solve_cvxpy_opt_problem()
@@ -384,8 +384,8 @@ class EfficientFrontier(mpo.BaseMPO):
         :return: asset weights for the Markowitz portfolio
         :rtype: OrderedDict
         """
-        if not isinstance(target_return, float) or target_return < 0:
-            raise ValueError("target_return should be a positive float")
+        # if not isinstance(target_return, float) or target_return < 0:
+        #     raise ValueError("target_return should be a positive float")
         # if not self._max_return_value:
         #     self._max_return_value = copy.deepcopy(self)._max_return()
         # if target_return > self._max_return_value:
@@ -415,7 +415,7 @@ class EfficientFrontier(mpo.BaseMPO):
             self._make_weight_sum_constraint(market_neutral)
         return self._solve_cvxpy_opt_problem()
 
-    def robust_efficient_frontier(self, target_return, uncertainty=None):
+    def robust_efficient_frontier(self, target_return, conf, uncertainty='box'):
         if not isinstance(target_return, float) or target_return < 0:
             raise ValueError("target_return should be a positive float")
 
@@ -437,9 +437,9 @@ class EfficientFrontier(mpo.BaseMPO):
                 raise ValueError("uncertainty type should either be box or ellipsoidal")
             else:
                 target_return_par = cp.Parameter(name="target_return", value=target_return)
-                unc = self.param_uncertainty(num_observation=252)
+                unc = self.param_uncertainty(num_observation=60)
                 if uncertainty == 'box':
-                    confidence_level = cp.Parameter(name="confidence_level", value=1.96)
+                    confidence_level = cp.Parameter(name="confidence_level", value=conf)
                     y = [cp.Variable(self.n_assets) for _ in range(self.trade_horizon)]
                     self._constraints += [(y[j] >= self._w[j]) for j in range(self.trade_horizon)]
                     self._constraints += [(y[j] >= -1 * self._w[j]) for j in range(self.trade_horizon)]
@@ -474,10 +474,10 @@ class EfficientFrontier(mpo.BaseMPO):
 
     def min_cvar(self, target_return, scenarios, alpha):
         num_scenarios = len(scenarios)
-        gamma = [cp.Variable(self.n_assets) for _ in range(self.trade_horizon)]
+        gamma = [cp.Variable(1) for _ in range(self.trade_horizon)]
         z = [[cp.Variable(1) for _ in range(num_scenarios)] for __ in range(self.trade_horizon)]
         self._objective = objective_functions._objective_value(
-            self._w, sum([gamma[i] + (1/((1-alpha)*num_scenarios)) * sum([z[j][i] for j in range(num_scenarios)])
+            self._w, sum([gamma[i] + (1/((1-alpha)*num_scenarios)) * sum([z[i][j] for j in range(num_scenarios)])
                           for i in range(self.trade_horizon)]
                          )
         )
@@ -489,8 +489,8 @@ class EfficientFrontier(mpo.BaseMPO):
                 [w[j] @ self.expected_returns[j] for j in range(self.trade_horizon)]
             ) >= self.trade_horizon * target_return_par, broadcast=False, block=True
         )
-        self._constraints += [(cp.sum(z[i][j]) >= 0) for i in range(num_scenarios) for j in range(self.trade_horizon)]
-        self._constraints += [(z[i][j] >= -1 * (self._w[j] @ scenarios[i][j]) - gamma[j])
+        self._constraints += [(cp.sum(z[j][i]) >= 0) for i in range(num_scenarios) for j in range(self.trade_horizon)]
+        self._constraints += [(z[j][i] >= -1 * (self._w[j] @ scenarios[i][j]) - gamma[j])
                               for i in range(num_scenarios) for j in range(self.trade_horizon)]
         self._make_weight_sum_constraint()
         return self._solve_cvxpy_opt_problem()

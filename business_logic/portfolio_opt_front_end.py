@@ -58,7 +58,7 @@ def port_opt(stock_picks, weight_constraints, control, trade_horizon, cardinalit
         merged = pd.merge(train_factors, train_returns[[tick]], left_on='date', right_on='date', how="inner",
                           sort=False)
         ff5 = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
-        merged[tick] = merged[tick] - merged['riskfree'].astype('float')
+        merged[tick] = merged[tick] - merged['riskfree'].astype('float')/100.0
         adj_returns = merged[[tick]]
 
         alpha = 1e-1
@@ -118,7 +118,7 @@ def port_opt(stock_picks, weight_constraints, control, trade_horizon, cardinalit
     exp_returns = {month: np.dot(mu_factor[month-1], weights) for month in range(trade_horizon)}
     ret_exp = {}
     for key in exp_returns.keys():
-        ret_exp[key+1] = (1 + exp_returns[key][0]*-1)
+        ret_exp[key+1] = (1 + exp_returns[key][0])
 
     for key in ret_exp.keys():
         if key != 1:

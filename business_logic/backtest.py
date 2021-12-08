@@ -40,34 +40,41 @@ pd.options.mode.chained_assignment = None  # default='warn'
 def historical_avg(returns, freq, trade_horizon=12):
     mu = returns.agg(lambda data: reduce(lambda x, y: x*y, [x+1 for x in data])**(1/freq) - 1)
     mu.rename("mu", inplace=True)
-    # mu = pd.DataFrame({'ticker': mu.index, 'mu': mu.values})
-    # mu.set_index('ticker', inplace=True)
     cov = param_estimator.sample_cov(returns, returns_data=True, frequency=freq)
     return [mu for _ in range(trade_horizon)], [cov for _ in range(trade_horizon)]
 
 
-def get_factor_mu(model_name, model, factors, month, factor_columns, ag):
-    data = [ag[model_name[:3]][factor_name][1][int(month)-1] for factor_name in factor_columns]
-    mu = model.predict(np.array(data).reshape(1, -1))
-    # diag_data = [ag[model_name[:3]][factor_name][3].residual_variance[f'h.{month}'] for factor_name in factor_columns]
-    # print(np.array(model.coef_).shape)
-    # print((factors[factor_columns].cov()*60).shape)
-    # cov = np.matmul(np.matmul(np.array(model.coef_), np.array(factors[factor_columns])).cov()*60, np.transpose(np.array(model.coef_))) + np.diag(diag_data)
-    return mu
+def get_factor_mu(model_name, model, asset_list, factor_columns, ag):
+    mu_factor = []
+    for month in range(12):
+        mu_month = []
+        for tick in asset_list:
+            data = [ag[model_name[:3]][factor_name][1][month - 1] for factor_name in factor_columns]
+            mu = model[(tick, model_name)][0].predict(np.array(data).reshape(1, -1))
+            mu_month.append(mu[0])
+        mu_factor.append(mu_month)
+    mu_factor = [pd.Series(mu_factor[i]) for i in range(12)]
+    return mu_factor
 
-# TODO
-# def get_factor_cov(model_name, factor_loading, factors, month, factor_columns, ag):
-#     # diag_data = [ag[model_name[:3]][factor_name][3].residual_variance[f'h.{month}'].iloc[-1:] for factor_name in factor_columns]
-#     print("C")
-#     print(np.array(factor_loading).shape)
-#     print(np.cov(np.array(factors[factor_columns])).shape)
-#     cov = np.matmul(np.matmul(np.array(factor_loading), np.cov(np.array(factors[factor_columns])), np.transpose(np.array(factor_loading))))
-#     # TODO: + np.diag(diag_data)
-#     return cov
+
+def get_scenarios(model_name, model, asset_list, factor_columns, ag, res, num_s):
+    scenarios = []
+    for s in range(num_s):
+        mu_factor = []
+        for month in range(12):
+            mu_month = []
+            for idx, tick in enumerate(asset_list):
+                data = [ag[model_name[:3]][factor_name][1][month - 1] for factor_name in factor_columns]
+                mu = model[(tick, model_name)][0].predict(np.array(data).reshape(1, -1))
+                mu_month.append(mu[0] + np.random.normal(0.0, res[idx][month]**0.5))
+            mu_factor.append(mu_month)
+        mu_factor = [pd.Series(mu_factor[i]) for i in range(12)]
+        scenarios.append(mu_factor)
+    return scenarios
 
 
 if __name__ == '__main__':
-    stock_picks = ['AAPL', 'DIS', 'JPM', 'KO', 'WMT']
+    stock_picks = ['DIS', 'IBM', 'JPM', 'KO', 'WMT']
     val_periods = [(f'{str(year)}-01-01', f'{str(year+4)}-12-31', f'{str(year+5)}-01-01', f'{str(year+5)}-12-31')
                    for year in range(2001, 2011)]
     for val in val_periods:
@@ -89,6 +96,10 @@ if __name__ == '__main__':
         valid_etf_tickers = train_etf_returns.columns
         print(f'number of etfs: {train_etf_returns.shape[1]}, number of months: {train_etf_returns.shape[0]}')
 
+        # market return
+        market_return = historical_avg(train_etf_returns[['SPY']], 60)[0][0].tolist()[0]
+        print(f'market return: {market_return}')
+
         pca = PCA(n_components='mle')
         principal_comp = pca.fit_transform(train_etf_returns.T)
         print(f'number of principal components: {principal_comp.shape[1]}')
@@ -100,10 +111,10 @@ if __name__ == '__main__':
         inertia = k_medoids.inertia_
         print(f'selected etfs: {selected_etfs}, cluster inertia: {inertia}')
 
-        etf_table = 'spy'
+        stock_table = 'spy'
         stock_returns_by_tick = []
         for tick in stock_picks:
-            returns = param_estimator.get_returns(tick, etf_table, train_start, test_end, freq='monthly')
+            returns = param_estimator.get_returns(tick, stock_table, train_start, test_end, freq='monthly')
             if returns.empty:
                 continue
             returns[tick] = returns['adj_close']
@@ -122,16 +133,15 @@ if __name__ == '__main__':
 
         # historical average param. estimation
         mu, cov = historical_avg(train_returns, 12*5, 12)
-        print(mu)
-        print(cov)
+        # print(mu[0])
+        # print(cov[0] / 60.0)
 
         factor_models = collections.OrderedDict()
-
         for tick in asset_universe:
             merged = pd.merge(train_factors, train_returns[[tick]], left_on='date', right_on='date', how="inner", sort=False)
             ff3 = merged[['excess', 'smb', 'hml']]
             ff5 = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
-            merged[tick] = merged[tick] - merged['riskfree'].astype('float')
+            merged[tick] = merged[tick] - merged['riskfree'].astype('float')/100.0
             adj_returns = merged[[tick]]
 
             alphas = [1e-2, 1e-1, 0.0]
@@ -154,60 +164,111 @@ if __name__ == '__main__':
 
         months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
         model_names = []
-        mu_factor = [[] for _ in range(12)]
+        mu_factor = collections.OrderedDict()
+        cov_factor = collections.OrderedDict()
+        scenarios_factor = collections.OrderedDict()
         for key, value in factor_models.items():
             tick, model_name = key
             model, r_sq = value
             model_names += [model_name]
-            factor_columns = ['excess', 'smb', 'hml'] if model_name[:3] == 'ff3' else ['excess', 'smb', 'hml', 'rmw', 'cma']
-            for month in months:
-                mu_month = get_factor_mu(model_name, model, train_factors, month, factor_columns, ag)
-                print(mu_month)
-                mu_factor[int(month)-1] += [mu_month[0]]
-        print(len(mu_factor))
-        print(len(mu_factor[0]))
-        print(len(mu_factor[1]))
-        mu_factor = [pd.DataFrame(mu_factor[i], columns=asset_universe) for i in range(12)]
+        model_names = list(set(model_names))
+        for model_name in model_names:
+            factor_columns = ['excess', 'smb', 'hml', 'rmw', 'cma'] if model_name[:3] == 'ff5' else ['excess', 'smb', 'hml']
+            mu_factor[model_name] = get_factor_mu(model_name, factor_models, asset_universe, factor_columns, ag)
+            factor_cov = train_factors[factor_columns].cov()
+            factor_loadings = []
+            r = []
+            for tick in asset_universe:
+                factor_loadings += [factor_models[(tick, model_name)][0].coef_]
+                res_var = [ag[model_name[:3]][factor][3].residual_variance.values.tolist()[0] for factor in
+                           factor_columns]
+                r.append([sum(i[0] * i[1] for i in zip([k ** 2 for k in factor_models[(tick, model_name)][0].coef_], [j[month] for j in res_var])) for month in range(12)])
+            factor_loadings = pd.DataFrame(factor_loadings, columns=factor_columns)
+            res_diag = [np.diag([res[month] for res in r]) for month in range(12)]
+            cov_factor[model_name] = [pd.DataFrame(np.dot(factor_loadings, np.dot(factor_cov, factor_loadings.T)) + res_diag[month], columns=asset_universe) for month in range(12)]
+            scenarios = get_scenarios(model_name, factor_models, asset_universe, factor_columns, ag, r, 1000)
+            scenarios_factor[model_name] = scenarios
 
-        # factor_loadings = collections.OrderedDict()
-        # for model_name in model_names:
-        #     factor_loadings[model_name] = []
-        # for month in months:
-        #     for key, value in factor_models.items():
-        #         tick, model_name = key
-        #         model, r_sq = value
-        #         factor_loadings[model_name] += [list(model.coef_)]
-        # for model_name in model_names:
-        #     factor_columns = ['excess', 'smb', 'hml'] if model_name[:3] == 'ff3' else ['excess', 'smb', 'hml', 'rmw', 'cma']
-        #     cov_factor = []
-        #     for month in months:
-        #         cov_month = get_factor_cov(model_name, factor_loadings[model_name], train_factors, month, factor_columns, ag)
-        #         cov_factor += [cov_month]
-        #     print(cov_factor)
+        # TODO: transaction cost, ellipsoidal uncertainty, multi-period leverage
+        weight_constraints = {'DIS':(0.05, 1.0), 'IBM':(0.05, 1.0), 'JPM':(0.05, 1.0), 'KO':(0.05, 1.0), 'WMT':(0.05, 1.0)}
+        for model_name in model_names:
 
-        ef = efficient_frontier.EfficientFrontier(mu_factor, [cov for _ in range(12)], trade_horizon=12)
-        ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
-        ef.max_sharpe()
-        weights = ef.clean_weights()
-        print(weights)
+            # robust MVO
+            for conf in [1.645, 1.960, 2.576]:
+                ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
+                # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+                card = np.zeros(shape=len(asset_universe))
+                control = 0.50
+                for i in range(len(stock_picks)):
+                    card[i] = 1
+                ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+                for i in range(len(stock_picks)):
+                    min = np.zeros(shape=len(asset_universe))
+                    max = np.ones(shape=len(asset_universe))
+                    min[i] = weight_constraints[asset_universe[i]][0]
+                    max[i] = weight_constraints[asset_universe[i]][1]
+                    ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                    ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+                ef.robust_efficient_frontier(target_return=market_return, conf=conf)
+                weights = ef.clean_weights()
+                print(weights)
 
-        ef = efficient_frontier.EfficientFrontier(mu_factor, [cov for _ in range(12)], trade_horizon=12)
-        ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
-        ef.efficient_return(target_return=0.10)
-        weights = ef.clean_weights()
-        print(weights)
+            # risk parity
+            ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
+            # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+            card = np.zeros(shape=len(asset_universe))
+            control = 0.50
+            for i in range(len(stock_picks)):
+                card[i] = 1
+            ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+            for i in range(len(stock_picks)):
+                min = np.zeros(shape=len(asset_universe))
+                max = np.ones(shape=len(asset_universe))
+                min[i] = weight_constraints[asset_universe[i]][0]
+                max[i] = weight_constraints[asset_universe[i]][1]
+                ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+            ef.risk_parity()
+            weights = ef.clean_weights()
+            print(weights)
 
-        ef = efficient_frontier.EfficientFrontier(mu_factor, [cov for _ in range(12)], trade_horizon=12)
-        ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
-        ef.robust_efficient_frontier(target_return=0.10, uncertainty='box')
-        weights = ef.clean_weights()
-        print(weights)
+            # max sharpe ratio
+            ef = efficient_frontier.EfficientFrontier([mu_factor[model_name][0] for _ in range(2)], [cov_factor[model_name][0] for _ in range(2)], trade_horizon=2)
+            # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+            card = np.zeros(shape=len(asset_universe))
+            control = 0.50
+            for i in range(len(stock_picks)):
+                card[i] = 1
+            ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+            for i in range(len(stock_picks)):
+                min = np.zeros(shape=len(asset_universe))
+                max = np.ones(shape=len(asset_universe))
+                min[i] = weight_constraints[asset_universe[i]][0]
+                max[i] = weight_constraints[asset_universe[i]][1]
+                ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+            ef.max_sharpe()
+            weights = ef.clean_weights()
+            print(weights)
 
-        ef = efficient_frontier.EfficientFrontier(mu_factor, [cov for _ in range(12)], trade_horizon=12)
-        ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
-        ef.risk_parity()
-        weights = ef.clean_weights()
-        print(weights)
-
+            # cvar opt.
+            for alpha in [0.90, 0.95, 0.99]:
+                ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
+                # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+                card = np.zeros(shape=len(asset_universe))
+                control = 0.50
+                for i in range(len(stock_picks)):
+                    card[i] = 1
+                ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+                for i in range(len(stock_picks)):
+                    min = np.zeros(shape=len(asset_universe))
+                    max = np.ones(shape=len(asset_universe))
+                    min[i] = weight_constraints[asset_universe[i]][0]
+                    max[i] = weight_constraints[asset_universe[i]][1]
+                    ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                    ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+                ef.min_cvar(target_return=market_return, scenarios=scenarios_factor[model_name], alpha=alpha)
+                weights = ef.clean_weights()
+                print(weights)
 
     cursor.close()

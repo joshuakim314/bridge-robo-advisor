@@ -75,7 +75,7 @@ class BaseMPO(base_optimizer.BaseConvexOptimizer):
         self.trade_horizon = trade_horizon
         self._w = [cp.Variable(n_assets) for _ in range(trade_horizon)] if not (trade_horizon is (None or 1)) \
             else cp.Variable(n_assets)
-        # self._map_bounds_to_constraints(weight_bounds)
+        self._map_bounds_to_constraints(weight_bounds)
 
     def _map_bounds_to_constraints(self, test_bounds):
         """

@@ -935,7 +935,7 @@ def arima_garch(factors, trade_horizon, columns):
 
         arima_residuals = arima.arima_res_.resid
         # fit a GARCH(r,s) model on the residuals of the ARIMA model
-        garch = arch.arch_model(arima_residuals, p=2, q=2).fit()
+        garch = arch.arch_model(arima_residuals, p=2, q=2).fit(disp="off")
         # print(garch.summary())
         garch_preds = garch.forecast(horizon=trade_horizon)
         fitted_models[factor] = (arima, arima_preds, garch, garch_preds)
