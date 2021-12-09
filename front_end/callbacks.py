@@ -12,16 +12,13 @@ import pandas as pd
 
 from backend_access import push_new_user, pull_user_data, update_risk_control, add_transaction, get_portfolio_data, get_past_deposits, get_past_deposits_brief, get_portfolio_value_by_date, get_all_tickers, get_portfolio_weights, get_trades, transact_stock
 
-from app import app
+from app_old import app
 
 import numpy as np
 import psycopg2.extensions
 psycopg2.extensions.register_adapter(np.int64, psycopg2._psycopg.AsIs)
 
-import sys
-# insert at 1, 0 is the script path (or '' in REPL)
-sys.path.append('../business_logic')
-import portfolio_opt_front_end
+import static.portfolio_opt_front_end as portfolio_opt_front_end
 
 conn = psycopg2.connect(
     host='database-1.csuf8nkuxrw3.us-east-2.rds.amazonaws.com',
@@ -599,7 +596,7 @@ def display_output(n_clicks, values, ranges, urisk, uret, ucontr, uhoriz, ucard,
                         figure=pie_old,
                     ),
                 ]),
-                html.Img(src='/assets/arrow.png', style={'height': '0.5in', 'width': '1in', 'align': 'center', 'marginTop': '2in'}),
+                html.Img(src='/static/arrow.png', style={'height': '0.5in', 'width': '1in', 'align': 'center', 'marginTop': '2in'}),
                 dbc.Col([
                     html.H5('New Portfolio Composition'),
                     dcc.Graph(

@@ -943,43 +943,45 @@ def arima_garch(factors, trade_horizon, columns):
 
 
 if __name__ == '__main__':
-    freq = 'monthly'
-    start_date = '2006-01-01' if freq == 'daily' else '200601'
-    end_date = '2015-12-31' if freq == 'daily' else '201512'
-    factors = get_factors(start=start_date, end=end_date, freq=freq)
-    print(factors)
+    print(get_all_tickers('spy'))
 
-    start_date = '2006-01-01'
-    end_date = '2015-12-31'
-
-    tables = ['canadianetfs', 'americanetfs']
-    header = ['ticker', 'alpha', 'excess_beta', 'smb_beta', 'hml_beta', 'rmw_beta', 'cma_beta', 'size', 'r_sq']
-    for table in tables:
-        with open(f'factor_loadings_{table}.csv', 'w', encoding='UTF8') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            tickers = get_all_tickers(table)
-            for tick in tickers:
-                returns = None
-                try:
-                    returns = get_returns(tick, table, start=start_date, end=end_date, freq=freq)
-                    has_null = returns[['adj_close']].isnull().values.any()
-                    if has_null: print(tick, 'NULL')
-                    else:
-                        merged = pd.merge(factors, returns, left_on='date', right_on='date', how="inner", sort=False)
-                        merged.dropna(inplace=True)
-                        factors_only = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
-                        merged['adj_close_rf'] = merged['adj_close'] - merged['riskfree'].astype('float')
-                        adj_returns = merged[['adj_close_rf']]
-                        adj_returns = get_monthly_returns(adj_returns)
-                        mlr, r_sq = MLR(factors_only, adj_returns['adj_close_rf'])
-                        wdata = [tick, mlr.intercept_] + mlr.coef_.tolist() + [adj_returns.shape[0], r_sq]
-                        writer.writerow(wdata)
-                        print(wdata)
-                except KeyError:
-                    print(tick, 'KEYERROR')
-
-    cursor.close()
+    # freq = 'monthly'
+    # start_date = '2006-01-01' if freq == 'daily' else '200601'
+    # end_date = '2015-12-31' if freq == 'daily' else '201512'
+    # factors = get_factors(start=start_date, end=end_date, freq=freq)
+    # print(factors)
+    #
+    # start_date = '2006-01-01'
+    # end_date = '2015-12-31'
+    #
+    # tables = ['canadianetfs', 'americanetfs']
+    # header = ['ticker', 'alpha', 'excess_beta', 'smb_beta', 'hml_beta', 'rmw_beta', 'cma_beta', 'size', 'r_sq']
+    # for table in tables:
+    #     with open(f'factor_loadings_{table}.csv', 'w', encoding='UTF8') as f:
+    #         writer = csv.writer(f)
+    #         writer.writerow(header)
+    #         tickers = get_all_tickers(table)
+    #         for tick in tickers:
+    #             returns = None
+    #             try:
+    #                 returns = get_returns(tick, table, start=start_date, end=end_date, freq=freq)
+    #                 has_null = returns[['adj_close']].isnull().values.any()
+    #                 if has_null: print(tick, 'NULL')
+    #                 else:
+    #                     merged = pd.merge(factors, returns, left_on='date', right_on='date', how="inner", sort=False)
+    #                     merged.dropna(inplace=True)
+    #                     factors_only = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
+    #                     merged['adj_close_rf'] = merged['adj_close'] - merged['riskfree'].astype('float')
+    #                     adj_returns = merged[['adj_close_rf']]
+    #                     adj_returns = get_monthly_returns(adj_returns)
+    #                     mlr, r_sq = MLR(factors_only, adj_returns['adj_close_rf'])
+    #                     wdata = [tick, mlr.intercept_] + mlr.coef_.tolist() + [adj_returns.shape[0], r_sq]
+    #                     writer.writerow(wdata)
+    #                     print(wdata)
+    #             except KeyError:
+    #                 print(tick, 'KEYERROR')
+    #
+    # cursor.close()
 
     # factor_columns = ['excess', 'smb', 'hml', 'rmw', 'cma']
     # for factor in factor_columns:

@@ -14,6 +14,7 @@ from arch.__future__ import reindexing
 
 from sklearn.decomposition import PCA
 from sklearn_extra.cluster import KMedoids
+from sklearn.metrics import r2_score
 
 import param_estimator
 import objective_functions
@@ -73,13 +74,40 @@ def get_scenarios(model_name, model, asset_list, factor_columns, ag, res, num_s)
     return scenarios
 
 
+# Accuracy metrics
+def forecast_accuracy(forecast, actual):
+    forecast = np.array(forecast)
+    actual = np.array(actual)
+    mape = np.mean(np.abs(forecast - actual)/np.abs(actual))  # MAPE
+    me = np.mean(forecast - actual)             # ME
+    mae = np.mean(np.abs(forecast - actual))    # MAE
+    mpe = np.mean((forecast - actual)/actual)   # MPE
+    rmse = np.mean((forecast - actual)**2)**.5  # RMSE
+    corr = np.corrcoef(forecast, actual)[0,1]   # corr
+    mins = np.amin(np.hstack([forecast[:,None],
+                              actual[:,None]]), axis=1)
+    maxs = np.amax(np.hstack([forecast[:,None],
+                              actual[:,None]]), axis=1)
+    minmax = 1 - np.mean(mins/maxs)             # minmax
+    return({'mape':mape, 'me':me, 'mae': mae,
+            'mpe': mpe, 'rmse':rmse,
+            'corr':corr, 'minmax':minmax})
+
+
 if __name__ == '__main__':
-    stock_picks = ['DIS', 'IBM', 'JPM', 'KO', 'WMT']
+    # stock_picks = ['DIS', 'IBM', 'JPM', 'KO', 'WMT']
+    stock_picks = ['CPB', 'EQR', 'HBI', 'UAL', 'WBA']
     weights_dict = collections.OrderedDict()
     returns_dict = collections.OrderedDict()
     assets_dict = collections.OrderedDict()
-    val_periods = [(f'{str(year)}-01-01', f'{str(year+4)}-12-31', f'{str(year+5)}-01-01', f'{str(year+5)}-12-31')
-                   for year in range(2001, 2011)]
+    portf_returns = collections.OrderedDict()
+    ag_metrics = collections.OrderedDict()
+    factor_model_metrics_insample = collections.OrderedDict()
+    factor_model_metrics_outsample = collections.OrderedDict()
+    # val_periods = [(f'{str(year)}-01-01', f'{str(year+4)}-12-31', f'{str(year+5)}-01-01', f'{str(year+5)}-12-31')
+    #                for year in range(2001, 2011)]
+    val_periods = [(f'{str(year)}-01-01', f'{str(year + 4)}-12-31', f'{str(year + 5)}-01-01', f'{str(year + 5)}-12-31')
+                   for year in range(2011, 2016)]
     for val in val_periods:
         print(val)
         train_start, train_end, test_start, test_end = val
@@ -135,38 +163,69 @@ if __name__ == '__main__':
         test_returns = pd.concat([test_stock_returns, test_etf_returns], axis=1)
 
         assets_dict[test_start] = asset_universe
-        returns_dict[test_start] = test_returns
+        returns_dict[test_start] = test_returns[asset_universe]
 
         # historical average param. estimation
-        mu, cov = historical_avg(train_returns, 12*5, 12)
+        mu, cov = historical_avg(train_returns[asset_universe], 12*5, 12)
         # print(mu[0])
         # print(cov[0] / 60.0)
 
+        print('data collected')
+
         factor_models = collections.OrderedDict()
-        for tick in asset_universe:
+        factor_model_metrics_insample_period = collections.OrderedDict()
+        for count, tick in enumerate(asset_universe):
             merged = pd.merge(train_factors, train_returns[[tick]], left_on='date', right_on='date', how="inner", sort=False)
             ff3 = merged[['excess', 'smb', 'hml']]
             ff5 = merged[['excess', 'smb', 'hml', 'rmw', 'cma']]
             merged[tick] = merged[tick] - merged['riskfree'].astype('float')/100.0
             adj_returns = merged[[tick]]
 
-            alphas = [1e-2, 1e-1, 0.0]
-            l1_ratios = list(np.arange(0, 0.1, 0.05))
+            # for validation
+            # alphas = [1e-2, 1e-1, 0.0]
+            # l1_ratios = list(np.arange(0, 0.1, 0.05))
+            # for test
+            alphas = [1e-1]
+            l1_ratios = [0.05]
 
             mlr3, r_sq3 = param_estimator.MLR(ff3, adj_returns[tick])
+            if count < 5:
+                factor_model_metrics_insample_period[(tick, 'ff3_mlr')] = r_sq3
+            else:
+                factor_model_metrics_insample_period[('etf', 'ff3_mlr')] = r_sq3
             factor_models[(tick, 'ff3_mlr')] = (mlr3, r_sq3)
             mlr5, r_sq5 = param_estimator.MLR(ff5, adj_returns[tick])
+            if count < 5:
+                factor_model_metrics_insample_period[(tick, 'ff5_mlr')] = r_sq5
+            else:
+                factor_model_metrics_insample_period[('etf', 'ff5_mlr')] = r_sq5
             factor_models[(tick, 'ff5_mlr')] = (mlr5, r_sq5)
             for alpha, l1_ratio in list(itertools.product(alphas, l1_ratios)):
                 en3, en_r_sq3 = param_estimator.EN(ff3, adj_returns[tick], alpha=alpha, l1_ratio=l1_ratio)
+                if count < 5:
+                    factor_model_metrics_insample_period[(tick, f'ff3_en_{alpha}_{l1_ratio}')] = en_r_sq3
+                else:
+                    factor_model_metrics_insample_period[('etf', f'ff3_en_{alpha}_{l1_ratio}')] = en_r_sq3
                 factor_models[(tick, f'ff3_en_{alpha}_{l1_ratio}')] = (en3, en_r_sq3)
                 en5, en_r_sq5 = param_estimator.EN(ff5, adj_returns[tick], alpha=alpha, l1_ratio=l1_ratio)
+                if count < 5:
+                    factor_model_metrics_insample_period[(tick, f'ff5_en_{alpha}_{l1_ratio}')] = en_r_sq5
+                else:
+                    factor_model_metrics_insample_period[('etf', f'ff5_en_{alpha}_{l1_ratio}')] = en_r_sq5
                 factor_models[(tick, f'ff5_en_{alpha}_{l1_ratio}')] = (en5, en_r_sq5)
+        factor_model_metrics_insample[test_start] = factor_model_metrics_insample_period
 
         # arima-garch
         ag = dict()
         ag['ff3'] = param_estimator.arima_garch(train_factors[['excess', 'smb', 'hml']], trade_horizon=12, columns=['excess', 'smb', 'hml'])
         ag['ff5'] = param_estimator.arima_garch(train_factors[['excess', 'smb', 'hml', 'rmw', 'cma']], trade_horizon=12, columns=['excess', 'smb', 'hml', 'rmw', 'cma'])
+
+        ag_metrics_period = collections.OrderedDict()
+        for factor in ['excess', 'smb', 'hml', 'rmw', 'cma']:
+            pred = ag['ff5'][factor][1]
+            actual = test_factors[factor].values.tolist()
+            ag_metrics_period[factor] = r2_score(pred, actual)
+        ag_metrics[test_start] = ag_metrics_period
 
         months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
         model_names = []
@@ -192,32 +251,71 @@ if __name__ == '__main__':
             factor_loadings = pd.DataFrame(factor_loadings, columns=factor_columns)
             res_diag = [np.diag([res[month] for res in r]) for month in range(12)]
             cov_factor[model_name] = [pd.DataFrame(np.dot(factor_loadings, np.dot(factor_cov, factor_loadings.T)) + res_diag[month], columns=asset_universe) for month in range(12)]
-            scenarios = get_scenarios(model_name, factor_models, asset_universe, factor_columns, ag, r, 1000)
+            scenarios = get_scenarios(model_name, factor_models, asset_universe, factor_columns, ag, r, 10)
             scenarios_factor[model_name] = scenarios
 
+        factor_model_metrics_outsample_period = collections.OrderedDict()
+        for model_name in model_names:
+            outsample_metrics = []
+            for month in range(12):
+                pred = mu_factor[model_name][month].values.tolist()
+                actual = test_returns[asset_universe].iloc[month].tolist()
+                outsample_metrics.append(r2_score(actual, pred))
+            factor_model_metrics_outsample_period[model_name] = outsample_metrics
+        outsample_metrics = []
+        for month in range(12):
+            actual = test_returns[asset_universe].iloc[month].tolist()
+            pred = mu[0].values.tolist()
+            outsample_metrics.append(r2_score(actual, pred))
+        factor_model_metrics_outsample_period['historical'] = outsample_metrics
+        factor_model_metrics_outsample[test_start] = factor_model_metrics_outsample_period
+        
+        print('generating portfolios')
+
         # TODO: transaction cost, ellipsoidal uncertainty, multi-period leverage
-        weight_constraints = {'DIS':(0.05, 1.0), 'IBM':(0.05, 1.0), 'JPM':(0.05, 1.0), 'KO':(0.05, 1.0), 'WMT':(0.05, 1.0)}
+        # weight_constraints = {'DIS':(0.05, 1.0), 'IBM':(0.05, 1.0), 'JPM':(0.05, 1.0), 'KO':(0.05, 1.0), 'WMT':(0.05, 1.0)}
+        weight_constraints = {'CPB': (0.05, 1.0), 'EQR': (0.05, 1.0), 'HBI': (0.05, 1.0), 'UAL': (0.05, 1.0),'WBA': (0.05, 1.0)}
         for model_name in model_names:
 
             # robust MVO
             for conf in [1.645, 1.960, 2.576]:
-                ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
-                # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
-                card = np.zeros(shape=len(asset_universe))
-                control = 0.50
-                for i in range(len(stock_picks)):
-                    card[i] = 1
-                ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
-                for i in range(len(stock_picks)):
-                    min = np.zeros(shape=len(asset_universe))
-                    max = np.ones(shape=len(asset_universe))
-                    min[i] = weight_constraints[asset_universe[i]][0]
-                    max[i] = weight_constraints[asset_universe[i]][1]
-                    ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
-                    ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
-                ef.robust_efficient_frontier(target_return=market_return, conf=conf)
-                weights = ef.clean_weights()
-                weights_dict[(test_start, model_name, conf)] = weights
+                try:
+                    ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
+                    # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+                    card = np.zeros(shape=len(asset_universe))
+                    control = 0.50
+                    for i in range(len(stock_picks)):
+                        card[i] = 1
+                    ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+                    for i in range(len(stock_picks)):
+                        min = np.zeros(shape=len(asset_universe))
+                        max = np.ones(shape=len(asset_universe))
+                        min[i] = weight_constraints[asset_universe[i]][0]
+                        max[i] = weight_constraints[asset_universe[i]][1]
+                        ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                        ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+                    ef.robust_efficient_frontier(target_return=market_return, conf=conf)
+                    weights = ef.clean_weights()
+                    weights_dict[(test_start, model_name, 'rmvo', conf)] = weights
+                except:
+                    ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name],
+                                                              trade_horizon=12)
+                    # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+                    card = np.zeros(shape=len(asset_universe))
+                    control = 0.50
+                    for i in range(len(stock_picks)):
+                        card[i] = 1
+                    ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+                    for i in range(len(stock_picks)):
+                        min = np.zeros(shape=len(asset_universe))
+                        max = np.ones(shape=len(asset_universe))
+                        min[i] = weight_constraints[asset_universe[i]][0]
+                        max[i] = weight_constraints[asset_universe[i]][1]
+                        ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                        ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+                    ef.robust_efficient_frontier(target_return=-100.0, conf=conf)
+                    weights = ef.clean_weights()
+                    weights_dict[(test_start, model_name, 'rmvo', conf)] = weights
 
             # risk parity
             ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
@@ -236,7 +334,7 @@ if __name__ == '__main__':
                 ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
             ef.risk_parity()
             weights = ef.clean_weights()
-            weights_dict[(test_start, model_name, None)] = weights
+            weights_dict[(test_start, model_name, 'rp', None)] = weights
 
             # max sharpe ratio
             ef = efficient_frontier.EfficientFrontier([mu_factor[model_name][0] for _ in range(2)], [cov_factor[model_name][0] for _ in range(2)], trade_horizon=2)
@@ -255,26 +353,67 @@ if __name__ == '__main__':
                 ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
             ef.max_sharpe()
             weights = ef.clean_weights()
-            weights_dict[(test_start, model_name, None)] = weights
+            weights_dict[(test_start, model_name, 'sr', None)] = weights
 
             # cvar opt.
             for alpha in [0.90, 0.95, 0.99]:
-                ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
-                # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
-                card = np.zeros(shape=len(asset_universe))
-                control = 0.50
-                for i in range(len(stock_picks)):
-                    card[i] = 1
-                ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
-                for i in range(len(stock_picks)):
-                    min = np.zeros(shape=len(asset_universe))
-                    max = np.ones(shape=len(asset_universe))
-                    min[i] = weight_constraints[asset_universe[i]][0]
-                    max[i] = weight_constraints[asset_universe[i]][1]
-                    ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
-                    ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
-                ef.min_cvar(target_return=market_return, scenarios=scenarios_factor[model_name], alpha=alpha)
-                weights = ef.clean_weights()
-                weights_dict[(test_start, model_name, alpha)] = weights
+                try:
+                    ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name], trade_horizon=12)
+                    # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+                    card = np.zeros(shape=len(asset_universe))
+                    control = 0.50
+                    for i in range(len(stock_picks)):
+                        card[i] = 1
+                    ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+                    for i in range(len(stock_picks)):
+                        min = np.zeros(shape=len(asset_universe))
+                        max = np.ones(shape=len(asset_universe))
+                        min[i] = weight_constraints[asset_universe[i]][0]
+                        max[i] = weight_constraints[asset_universe[i]][1]
+                        ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                        ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+                    ef.min_cvar(target_return=market_return, scenarios=scenarios_factor[model_name], alpha=alpha)
+                    weights = ef.clean_weights()
+                    weights_dict[(test_start, model_name, 'cvar', alpha)] = weights
+                except:
+                    ef = efficient_frontier.EfficientFrontier(mu_factor[model_name], cov_factor[model_name],
+                                                              trade_horizon=12)
+                    # ef.add_objective(objective_functions.transaction_cost, w_prev=np.zeros(len(asset_universe)), k=0.001)
+                    card = np.zeros(shape=len(asset_universe))
+                    control = 0.50
+                    for i in range(len(stock_picks)):
+                        card[i] = 1
+                    ef.add_constraint(lambda w: card @ w >= control, broadcast=False, var_list=[0])
+                    for i in range(len(stock_picks)):
+                        min = np.zeros(shape=len(asset_universe))
+                        max = np.ones(shape=len(asset_universe))
+                        min[i] = weight_constraints[asset_universe[i]][0]
+                        max[i] = weight_constraints[asset_universe[i]][1]
+                        ef.add_constraint(lambda w: w >= min, broadcast=False, var_list=[0])
+                        ef.add_constraint(lambda w: w <= max, broadcast=False, var_list=[0])
+                    ef.min_cvar(target_return=-100.0, scenarios=scenarios_factor[model_name], alpha=alpha)
+                    weights = ef.clean_weights()
+                    weights_dict[(test_start, model_name, 'cvar', alpha)] = weights
+
+        weights_dict[(test_start, 'ewp', None, None)] = collections.OrderedDict({0: 0.2, 1: 0.2, 2: 0.2, 3: 0.2, 4: 0.2,
+                                                                                 5: 0.0, 6: 0.0, 7: 0.0, 8: 0.0, 9: 0.0,
+                                                                                 10: 0.0, 11: 0.0, 12: 0.0, 13: 0.0, 14: 0.0})
+
+        portf_returns_period = collections.OrderedDict()
+        for item in weights_dict.items():
+            key, value = item
+            test_start_, model_name_, portf_model, hp = key
+            portf_returns_temp = []
+            if test_start_ != test_start:
+                continue
+            for month in range(12):
+                returns_data = test_returns[asset_universe].iloc[month].values.tolist()
+                weights_ = []
+                for item_ in value.items():
+                    weights_.append(item_[1])
+                portf_returns_temp.append(np.dot(returns_data, weights_))
+            portf_returns_period[(model_name_, portf_model, hp)] = portf_returns_temp
+        portf_returns_period[('spy', None, None)] = test_returns['SPY'].values.tolist()
+        portf_returns[test_start] = portf_returns_period
 
     cursor.close()

@@ -280,7 +280,7 @@ class EfficientFrontier(mpo.BaseMPO):
         self.add_constraint(lambda w: cp.sum(w) == k)
         for i in range(self.trade_horizon):
             self.add_constraint(
-                lambda w: w @ (self.expected_returns[i]) == 1, broadcast=False, var_list=[i]
+                lambda w: w @ (self.expected_returns[i].clip(lower=0.0001)) == 1, broadcast=False, var_list=[i]
             )
 
         self._solve_cvxpy_opt_problem()
@@ -416,8 +416,8 @@ class EfficientFrontier(mpo.BaseMPO):
         return self._solve_cvxpy_opt_problem()
 
     def robust_efficient_frontier(self, target_return, conf, uncertainty='box'):
-        if not isinstance(target_return, float) or target_return < 0:
-            raise ValueError("target_return should be a positive float")
+        # if not isinstance(target_return, float) or target_return < 0:
+        #     raise ValueError("target_return should be a positive float")
 
         market_neutral = False
         update_existing_parameter = self.is_parameter_defined("target_return")
